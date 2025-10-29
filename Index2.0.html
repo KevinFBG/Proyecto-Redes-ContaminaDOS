@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>contaminaDOS 🌱 REST API Final</title>
+  <style>
+    :root {
+      --bg: #eaf4f1;
+      --green: #2d6a4f;
+      --mint: #40916c;
+      --card: #fff;
+      --text: #222;
+      --muted: #6c757d;
+      --border: #ccc;
+      --console: #111;
+      --console-text: #0f0;
+    }
+
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: var(--bg);
+      margin: 0;
+      color: var(--text);
+    }
+
+    header {
+      background: var(--green);
+      color: white;
+      text-align: center;
+      padding: 1rem;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 2rem auto;
+      background: var(--card);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    input,
+    button,
+    select {
+      width: 100%;
+      padding: .6rem;
+      margin: .4rem 0;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    input[aria-invalid="true"] {
+      border-color: #dc3545;
+      outline-color: #dc3545;
+    }
+
+    small.hint {
+      color: var(--muted);
+      display: block;
+      margin-top: .2rem;
+    }
+
+    button {
+      background: var(--mint);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: var(--green);
+    }
+
+    button:disabled {
+      background: #9fb8ab;
+      cursor: not-allowed;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: .5rem;
+      text-align: center;
+    }
+
+    .grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .status {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+
+    .phase {
+      background: #d8f3dc;
+      padding: .6rem;
+      border-radius: 5px;
+      margin-top: 1rem;
+    }
+
+    #console {
+      background: var(--console);
+      color: var(--console-text);
+      font-family: monospace;
+      padding: 1rem;
+      border-radius: 10px;
+      height: 240px;
+      overflow-y: auto;
+      margin-top: 2rem;
+      white-space: pre-wrap;
+    }
+
+    .row {
+      display: flex;
+      gap: .6rem;
+      align-items: center;
+    }
+
+    .row>* {
+      flex: 1;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: .2rem .5rem;
+      border-radius: 999px;
+      background: #edf6f9;
+      color: #1d3557;
+      font-weight: 600;
+    }
+
+    .flex {
+      display: flex;
+      gap: .6rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>🌍 ContaminaDOS</h1>
+    <p>Frontend Grupo E</p>
+    <p>Jugador:</p>
+    <p id="activePlayerName"></p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Conexión</h2>
+      <div class="row">
+        <input id="serverUrl" placeholder="Servidor" />
+        <button onclick="connect()">Conectar</button>
+      </div>
+      <small class="hint">https://contaminados.akamai.meseguercr.com
+      </small>
+      <p id="connStatus"></p>
+    </section>
+
+    <section id="playerSection" style="display:none;">
+      <h2>Jugador y partida</h2>
+
+      <!-- Nombre del jugador -->
+      <div class="row">
+        <input id="playerName" placeholder="Nombre del jugador (3–20)" />
+      </div>
+
+      <!-- Nombre y contraseña de la partida -->
+      <div class="row">
+        <input id="gameName" placeholder="Nombre de la partida (3–20)" />
+        <input id="gamePassword" placeholder="Contraseña de la partida (opcional, 3–20)" />
+      </div>
+
+      <!-- Botón crear partida -->
+      <div class="row">
+        <button onclick="createGame()">Crear partida</button>
+      </div>
+
+      <!-- Buscar partida -->
+      <div class="row">
+        <input id="searchName" placeholder="Nombre de la partida a buscar" />
+        <button onclick="searchGame()">Buscar partida</button>
+      </div>
+
+      <!-- Estado y rango -->
+      <div class="row">
+        <select id="searchStatus">
+          <option value="">Estado: cualquiera</option>
+          <option value="lobby">lobby</option>
+          <option value="rounds">rounds</option>
+          <option value="ended">ended</option>
+        </select>
+        <input type="number" id="searchPage" min="0" value="0" placeholder="Rango 0" />
+        <input type="number" id="searchLimit" min="1" max="50" value="50" placeholder="Rango Xnum" />
+      </div>
+    </section>
+
+
+    <section id="gamesList" style="display:none;">
+      <h2>Partidas</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Jugadores</th>
+            <th>Estado</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="gamesTable"></tbody>
+      </table>
+    </section>
+
+    <section id="gameStatus" style="display:none;">
+      <h2> Partida</h2>
+      <div id="statusBox" class="status">Esperando información...</div>
+      <div class="flex">
+        <!-- ocultos hasta que la partida inicie -->
+        <span id="decadePill" class="pill" style="display:none;">Década: —</span>
+        <span id="scorePill" class="pill" style="display:none;">Puntaje — Ciudadanos: 0 | Psicópatas: 0</span>
+        <span id="phasePill" class="pill" style="display:none;">Fase: —</span>
+        <!-- solo visible para psicópatas una vez iniciada la partida -->
+        <span id="enemiesPill" class="pill" style="display:none;">Psicópatas: —</span>
+      </div>
+      <div class="row">
+        <!-- start and refresh are hidden by default until refreshGame() determines visibility -->
+        <button id="startBtn" onclick="startGame()" disabled style="display:none;">Iniciar partida</button>
+      <!--  <button id="refreshBtn" onclick="refreshGame()" style="display:none;">Actualizar estado</button> -->
+        <!-- pasar el event al handler para evitar usar la variable global event -->
+        <button onclick="toggleAutoRefresh(event)">Autorefresh: Off</button>
+      </div>
+      <small class="hint">Solo el creador puede iniciar; se requieren entre 5 y 10 jugadores.</small>
+    </section>
+
+    <section id="roundSection" style="display:none;">
+      <h2>5️Rondas</h2>
+      <div id="roundIdDisplay">ID de Ronda: N/A</div>
+      <div id="roundInfo" class="phase">Sin datos</div>
+      <div id="roundActions" style="margin-top:1rem;">
+        <div class="row">
+          <!-- hidden until game status === 'started' -->
+         <!-- <button id="btnGetRounds" onclick="getRounds()" style="display:none;">🔄 Ver rondas</button> -->
+          <button id="btnPropose" onclick="proposeGroup()" style="display:none;">📋 Proponer grupo</button>
+          <button id="btnVote" onclick="voteGroup()" style="display:none;">🗳️ Votar grupo</button>
+          <button id="btnCollab" onclick="sendAction(true)" style="display:none;">✅ Colaborar</button>
+          <button id="btnSabot" onclick="sendAction(false)" style="display:none;">💀 Sabotear</button>
+        </div>
+        <small class="hint" id="groupSizeHint" style="display:none;">Tamaño requerido de grupo: —</small>
+      </div>
+    </section>
+
+    <section style="display: none;">
+      <h2>🧩 Consola de depuración</h2>
+      <div id="console">Esperando acciones...</div>
+    </section>
+  </main>
+
+  <script>
+    let server = "";
+    let player = "";
+    let currentPassword = "nopass";
+    let currentGameId = "";
+    let currentRoundId = "";
+    let autoRefresh = null;
+    let autoOn = false;
+    let lastGame = null;
+
+
+
+    /* ---------- Utilities ---------- */
+    function logConsole(msg, obj = null) {
+      const consoleBox = document.getElementById("console");
+      const time = new Date().toLocaleTimeString();
+      consoleBox.textContent += `\n[${time}] ${msg}`;
+      if (obj) consoleBox.textContent += "\n" + JSON.stringify(obj, null, 2);
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    function setInvalid(el, invalid) {
+      el.setAttribute("aria-invalid", invalid ? "true" : "false");
+    }
+
+    function validateLength(str, min, max, optional = false) {
+      if (optional && !str) return true;
+      return typeof str === "string" && str.length >= min && str.length <= max;
+    }
+
+    //Mostrar el nombre del jugador activo
+    function updatePlayerDisplay() {
+      const el = document.getElementById("activePlayerName");
+      if (el) {
+        el.textContent = player ? `(${player})` : "";
+      }
+    }
+
+    /* ---------- Game rules (PDF) ---------- */
+    // Cant jugadores, decada -> tamaño grupo
+    function groupSizeFor(playersCount, decadeNumber) {
+      const t = {
+        5: { 1: 2, 2: 3, 3: 2, 4: 3, 5: 3 },
+        6: { 1: 2, 2: 3, 3: 4, 4: 3, 5: 4 },
+        7: { 1: 2, 2: 3, 3: 3, 4: 4, 5: 4 },
+        8: { 1: 3, 2: 4, 3: 4, 4: 5, 5: 5 },
+        9: { 1: 3, 2: 4, 3: 4, 4: 5, 5: 5 },
+        10: { 1: 3, 2: 4, 3: 4, 4: 5, 5: 5 }
+      };
+      const row = t[playersCount];
+      return row ? row[decadeNumber] : null;
+    }
+
+    // MAPA DE ROLES: [Ciudadanos, Psicópatas]
+    const ROLE_MAP = {
+      5: [3, 2],
+      6: [4, 2],
+      7: [4, 3],
+      8: [5, 3],
+      9: [6, 3],
+      10: [6, 4]
+    };
+
+
+    /* ---------- Connection ---------- */// Conectar al servidor // cambiar esto para poner document y conectar a los otros servidores
+    function connect() {
+      server = "https://contaminados.akamai.meseguercr.com"; //document.getElementById("serverUrl").value.trim();"https://contaminados.akamai.meseguercr.com"
+      if (!server) return alert("Ingrese la URL del servidor.");
+      document.getElementById("connStatus").textContent = "✅ Conectado a: " + server;
+      document.querySelector("section").style.display = "none"; // hide connection section
+      document.getElementById("playerSection").style.display = "block";
+      document.getElementById("gamesList").style.display = "none";
+      logConsole("Conectado a " + server);
+      updatePlayerDisplay();
+    }
+
+    /* ---------- Create/Search ---------- */
+    async function createGame() {
+      const playerEl = document.getElementById("playerName");
+      const nameEl = document.getElementById("gameName");
+      const pwdEl = document.getElementById("gamePassword");
+
+      player = playerEl.value.trim();
+      const name = nameEl.value.trim();
+      const password = pwdEl.value.trim();
+
+      const vPlayer = validateLength(player, 3, 20);
+      const vName = validateLength(name, 3, 20);
+      const vPwd = validateLength(password, 3, 20, true);
+
+      setInvalid(playerEl, !vPlayer);
+      setInvalid(nameEl, !vName);
+      setInvalid(pwdEl, !(vPwd || !password));
+
+      if (!vPlayer || !vName || !(vPwd || !password)) {
+        return alert("Revise longitudes: jugador y nombre (3–20), contraseña (3–20 opcional).");
+      }
+
+      const body = { name, owner: player };
+      if (password) body.password = password;
+
+      const res = await fetch(`${server}/api/games`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json().catch(() => ({}));
+      logConsole("POST /api/games", data);
+
+      if (res.status === 201) {
+        currentGameId = data.data.id;
+        currentPassword = password || "nopass"; // store for headers
+        alert(data.msg || "Partida creada.");
+        document.getElementById("gameStatus").style.display = "block";
+        updatePlayerDisplay();
+        // no mostrar la sección de rondas hasta que la partida se inicie
+        await refreshGame();
+        if (autoOn) startAutoRefresh();
+      } else {
+        alert(data.msg || `Error al crear (${res.status})`);
+      }
+    }
+
+    async function searchGame() {
+      const name = document.getElementById("searchName").value.trim();
+      const status = document.getElementById("searchStatus").value;
+      const page = parseInt(document.getElementById("searchPage").value || "0", 10);
+      const limit = parseInt(document.getElementById("searchLimit").value || "50", 10);
+
+      const params = new URLSearchParams();
+      if (name) params.append("name", name);
+      if (status) params.append("status", status);
+      if (!isNaN(page) && page >= 0) params.append("page", page);
+      if (!isNaN(limit) && limit >= 0 && limit <= 50) params.append("limit", limit);
+
+      const url = `${server}/api/games${params.toString() ? `?${params.toString()}` : ""}`;
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      logConsole("GET /api/games", data);
+
+      const table = document.getElementById("gamesTable");
+      table.innerHTML = "";
+      (data.data || []).forEach(g => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+      <td>${g.id}</td>
+      <td>${g.name}</td>
+      <td>${Array.isArray(g.players) ? g.players.length : 0}</td>
+      <td>${g.status}</td>
+      <td><button onclick="joinGame('${g.id}','${g.owner}',${g.password})">Entrar</button></td>`;
+        table.appendChild(row);
+      });
+      document.getElementById("gamesList").style.display = "block";
+    }
+
+    /* ---------- Join (skip for owner) ---------- */
+    async function joinGame(gameId, owner, requiresPassword) {
+      const playerEl = document.getElementById("playerName");
+      player = playerEl.value.trim();
+
+      const vPlayer = validateLength(player, 3, 20);
+      setInvalid(playerEl, !vPlayer);
+      if (!vPlayer) return alert("Ingrese su nombre de jugador (3–20).");
+
+      // Si es el dueno, fuerza unirse   
+      if (owner === player) {
+        alert("Eres el dueño de la partida, ya estás dentro.");
+        currentGameId = gameId;
+        document.getElementById("playerSection").style.display = "none";
+        document.getElementById("gamesList").style.display = "none";
+        document.getElementById("gameStatus").style.display = "block";
+        updatePlayerDisplay();
+        // no mostrar la sección de rondas hasta que la partida se inicie
+        await refreshGame();
+        if (autoOn) startAutoRefresh();
+        return;
+      }
+
+      let pass = "nopass"; // default no password
+      if (requiresPassword === true || requiresPassword === "true") {
+        pass = prompt("La partida tiene contraseña. Ingrésela:") || "";
+        const vPwd = validateLength(pass, 3, 20);
+        if (!vPwd) return alert("La contraseña debe tener entre 3 y 20 caracteres.");
+      }
+      currentPassword = pass;
+
+      const res = await fetch(`${server}/api/games/${gameId}/`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "player": player, "password": pass },
+        body: JSON.stringify({ player, password: pass })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      logConsole(`PUT /api/games/${gameId}/`, data);
+
+      if (res.ok) {
+        currentGameId = gameId;
+        alert(data.msg || "Unido correctamente a la partida.");
+        document.getElementById("playerSection").style.display = "none";
+        document.getElementById("gamesList").style.display = "none";
+        document.getElementById("gameStatus").style.display = "block";
+        updatePlayerDisplay();
+        // no mostrar la sección de rondas hasta que la partida se inicie
+        await refreshGame();
+        if (autoOn) startAutoRefresh();
+      } else {
+        alert(data.msg || `Error (${res.status}) — Verifique la contraseña o el nombre exacto del jugador.`);
+      }
+    }
+
+    /* ---------- Start ---------- */
+    async function startGame() {
+      if (!currentGameId) return alert("No hay partida seleccionada.");
+      const res = await fetch(`${server}/api/games/${currentGameId}/start`, {
+        method: "HEAD",
+        headers: { "player": player, "password": currentPassword }
+      });
+      logConsole(`HEAD /api/games/${currentGameId}/start`, { status: res.status });
+      if (res.ok) {
+        alert("Partida iniciada");
+      } else {
+        alert(`No se pudo iniciar (${res.status})`);
+      }
+      await refreshGame();
+    }
+
+    /* ---------- Status, rounds, and UI ---------- */
+    async function refreshGame() {
+      if (!currentGameId) return;
+      const res = await fetch(`${server}/api/games/${currentGameId}/`, {
+        headers: { "player": player, "password": currentPassword }
+      });
+      const data = await res.json().catch(() => ({}));
+      logConsole(`GET /api/games/${currentGameId}/`, data);
+
+      if (!res.ok) return;
+
+      const g = data.data;
+      lastGame = g;
+      const playerCount = Array.isArray(g.players) ? g.players.length : 0;
+
+      // Elementos UI
+      const startBtn = document.getElementById("startBtn");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const roundSection = document.getElementById("roundSection");
+      const decadePill = document.getElementById("decadePill");
+      const scorePill = document.getElementById("scorePill");
+      const phasePill = document.getElementById("phasePill");
+      const enemiesPill = document.getElementById("enemiesPill");
+      const roundInfo = document.getElementById("roundInfo");
+      const groupSizeHint = document.getElementById("groupSizeHint");
+      const btns = {
+        getRounds: document.getElementById("btnGetRounds"),
+        propose: document.getElementById("btnPropose"),
+        vote: document.getElementById("btnVote"),
+        collab: document.getElementById("btnCollab"),
+        sabot: document.getElementById("btnSabot")
+      };
+
+      const isOwner = (g.owner === player);
+
+      // Determinar si el jugador es psicópata (enemy). Usamos existencia de g.enemies.
+      const isEnemy = Array.isArray(g.enemies) && g.enemies.includes(player);
+
+      // Solo el owner ve los botones de iniciar y actualizar estado
+      if (startBtn) startBtn.style.display = isOwner ? "inline-block" : "none";
+      if (refreshBtn) refreshBtn.style.display = isOwner ? "inline-block" : "none";
+
+      // Considerar ambos estados como "partida iniciada"
+      const started = (g.status === "started" || g.status === "rounds");
+
+      // Mostrar solo nombre y jugadores + estado (no roles) hasta iniciar
+      const statusEl = document.getElementById("statusBox");
+      statusEl.textContent = `Partida: ${g.name} | Jugadores: ${g.players.join(", ")} | Estado: ${g.status}`;
+
+      // Habilitar/deshabilitar botón de inicio (si está visible)
+      const canStartByCount = playerCount >= 5 && playerCount <= 10;
+      if (startBtn) startBtn.disabled = !(isOwner && canStartByCount && g.status === "lobby");
+
+      // Mostrar/ocultar toda la sección de rondas según estado
+      if (roundSection) roundSection.style.display = started ? "block" : "none";
+
+      // Si la partida NO está iniciada: asegurarse de ocultar/limpiar info de rondas y roles
+      if (!started) {
+        if (decadePill) decadePill.style.display = "none";
+        if (scorePill) scorePill.style.display = "none";
+        if (phasePill) phasePill.style.display = "none";
+        if (enemiesPill) enemiesPill.style.display = "none";
+        if (roundInfo) roundInfo.textContent = ""; // quitar texto de rondas
+        if (groupSizeHint) groupSizeHint.style.display = "none";
+        Object.values(btns).forEach(b => { if (b) { b.style.display = "none"; b.disabled = false; } });
+        currentRoundId = "";
+        return;
+      }
+
+      // Si la partida está iniciada: mostrar roles/rondas y poblar datos
+      if (decadePill) decadePill.style.display = "inline-block";
+      if (scorePill) scorePill.style.display = "inline-block";
+      if (phasePill) phasePill.style.display = "inline-block";
+      if (groupSizeHint) groupSizeHint.style.display = "block";
+      Object.values(btns).forEach(b => { if (b) { b.style.display = "inline-block"; b.disabled = false; } });
+
+      // Mostrar rol si el servidor provee 'enemies' (y sólo ahora que la partida está iniciada)
+      if (g.enemies && started) {
+        const roles = ROLE_MAP[playerCount];
+        const roleText = isEnemy ? " | Rol: Psicopata" : " | Rol: Ciudadano";
+        const totalRoles = roles ? ` | Total Roles: C=${roles[0]} / P=${roles[1]}` : "";
+        statusEl.textContent += roleText + totalRoles;
+
+        // Si soy psicópata, mostrar la lista de otros psicópatas (excluyendo mi nombre)
+        if (isEnemy && enemiesPill) {
+          const others = g.enemies.filter(n => n !== player);
+          enemiesPill.textContent = others.length ? `Otros psicópatas: ${others.join(", ")}` : `Eres psicópata (sin otros conocidos)`;
+          enemiesPill.style.display = "inline-block";
+        } else if (enemiesPill) {
+          enemiesPill.style.display = "none";
+        }
+      } else {
+        if (enemiesPill) enemiesPill.style.display = "none";
+      }
+
+      // Ocultar el botón de sabotear para jugadores que no sean psicópatas
+      if (btns.sabot) {
+        btns.sabot.style.display = isEnemy ? "inline-block" : "none";
+        btns.sabot.disabled = !isEnemy;
+      }
+
+      // Llamar a getRounds() para poblar la info de rondas ahora que inició
+      await getRounds();
+    }
+
+    async function getRounds() {
+      if (!currentGameId) return;
+      const res = await fetch(`${server}/api/games/${currentGameId}/rounds`, {
+        headers: { "player": player, "password": currentPassword }
+      });
+
+      const data = await res.json().catch(() => ({}));
+      logConsole(`GET /api/games/${currentGameId}/rounds`, data);
+
+      if (!res.ok) return;
+
+      const rounds = data.data || [];
+      const lastRound = rounds[rounds.length - 1];
+
+      if (lastRound) {
+        // Para actualizar la información de la ronda 
+        const roundDetails = `Ronda: ${lastRound.leader} | Estado: ${lastRound.status} | Fase: ${lastRound.phase} | Grupo: ${lastRound.group.join(', ')}`;
+
+        // ACTUALIZAR EL ELEMENTO HTML
+        document.getElementById("roundInfo").textContent = roundDetails;
+
+        // ACTUALIZAR currentRoundId
+        currentRoundId = lastRound.roundId;
+      } else {
+        document.getElementById("roundInfo").textContent = "Sin datos de ronda.";
+      }
+
+      // No hay rondas activas
+      if (rounds.length === 0) {
+        document.getElementById("roundInfo").textContent = "No hay rondas activas todavía.";
+        document.getElementById("decadePill").textContent = "Década: 0";
+        document.getElementById("phasePill").textContent = "Fase: —";
+        document.getElementById("scorePill").textContent = "Puntaje — Ciudadanos: 0 | Psicópatas: 0";
+        document.getElementById("groupSizeHint").textContent = "Tamaño requerido de grupo: —";
+        currentRoundId = "";
+        return;
+      }
+
+      // primer elemento, que es la ronda más reciente
+      const currentRound = rounds[0];
+      currentRoundId = currentRound.id;
+
+      // Década actual (1..5)
+      const decade = rounds.length;
+
+      // Puntajes
+      const citizensWins = rounds.filter(r => r.result === "citizens").length;
+      const enemiesWins = rounds.filter(r => r.result === "enemies").length;
+
+      // Mostrar información de ronda (usando 'currentRound' en lugar de 'last')
+      document.getElementById("roundInfo").textContent =
+        `Ronda: ${currentRound.id} | Líder: ${currentRound.leader} | Estado: ${currentRound.status} | Fase: ${currentRound.phase} | Grupo: ${currentRound.group?.join(", ") || "ninguno"}`;
+      document.getElementById("decadePill").textContent = `Década: ${decade}`;
+      document.getElementById("phasePill").textContent = `Fase: ${currentRound.phase}`;
+      document.getElementById("scorePill").textContent = `Puntaje — Ciudadanos: ${citizensWins} | Psicópatas: ${enemiesWins}`;
+
+      // Mostrar tamaño de grupo esperado
+      const playersCount = Array.isArray(lastGame?.players) ? lastGame.players.length : 0;
+      const requiredSize = groupSizeFor(playersCount, Math.min(decade, 5));
+      document.getElementById("groupSizeHint").textContent =
+        `Tamaño requerido de grupo: ${requiredSize ?? "—"} (jugadores: ${playersCount})`;
+
+      //  Verificar si alguien ya ganó (3 puntos)
+      const partidaTerminada = citizensWins >= 3 || enemiesWins >= 3;
+      if (partidaTerminada) {
+        const ganador = citizensWins >= 3 ? "🎉 ¡Los Ciudadanos ganaron la partida!" : "💀 ¡Los Psicópatas ganaron la partida!";
+        alert(ganador);
+        logConsole("Partida finalizada", { citizensWins, enemiesWins });
+        stopAutoRefresh();
+      }
+
+      // Deshabilitar botones solo si la partida terminó
+      document.querySelectorAll("button").forEach(b => {
+        if (b.id !== "startBtn" && b.id !== "searchBtn") {
+          b.disabled = partidaTerminada;
+        }
+      });
+    }
+
+    async function proposeGroup() {
+      if (!currentGameId || !lastGame) return alert("Primero obtén el estado del juego.");
+
+      //Obtener la información de la ronda actual para saber quién es el líder
+      const roundsRes = await fetch(`${server}/api/games/${currentGameId}/rounds`, {
+        headers: { "player": player, "password": currentPassword }
+      });
+      const roundsData = await roundsRes.json().catch(() => ({}));
+      if (!roundsData.data || roundsData.data.length === 0) {
+        return alert("No hay rondas activas para proponer un grupo.");
+      }
+      const currentRound = roundsData.data[roundsData.data.length - 1];
+
+      // Solo el líder de la ronda puede proponer
+      if (currentRound.leader !== player) {
+        return alert(`Solo el líder (${currentRound.leader}) puede proponer un grupo.`);
+      }
+
+      //Calcular el tamaño de grupo requerido usando la información del juego
+      const playersCount = lastGame.players.length;
+      // LÍNEA CORREGIDA: Usamos el número de rondas como el número de la década
+      const decade = roundsData.data.length;
+      const requiredSize = groupSizeFor(playersCount, decade);
+
+      if (!requiredSize) {
+        // El mensaje de error ahora será más claro si algo falla
+        return alert(`No se pudo determinar el tamaño de grupo para ${playersCount} jugadores en la década ${decade}.`);
+      }
+
+      //Pedir al usuario los miembros del grupo
+      const otherMembersCount = requiredSize - 1;
+      const promptMessage = `Eres el líder. Se necesita un grupo de ${requiredSize}. Por favor, ingresa los nombres de los otros ${otherMembersCount} miembros, separados por comas.`;
+
+      const membersInput = prompt(promptMessage);
+      if (membersInput === null) return; // El usuario canceló
+
+      //Procesar y validar la entrada del usuario
+      const proposedMembers = membersInput.split(',').map(name => name.trim()).filter(Boolean);
+
+      // 1. Verificar si el líder se incluyó en la lista de "otros miembros"
+      const leaderInProposed = proposedMembers.includes(player);
+      if (leaderInProposed) {
+        return alert("Error: No puedes incluir tu propio nombre en la lista de 'otros miembros'. El líder ya se incluye automáticamente.");
+      }
+
+      // 2. Verificar duplicados en la lista de "otros miembros"
+      const memberSet = new Set(proposedMembers);
+      if (memberSet.size !== proposedMembers.length) {
+        return alert("Error: La lista de 'otros miembros' contiene nombres duplicados. Por favor, revisa la lista.");
+      }
+
+      //Construir el grupo final, incluyendo al líder
+      const finalGroup = [player, ...proposedMembers];
+
+      if (finalGroup.length !== requiredSize) {
+        return alert(`Error: Se requieren ${requiredSize} miembros en total, pero has propuesto un grupo de ${finalGroup.length}. Inténtalo de nuevo.`);
+      }
+
+      // Enviar la propuesta al servidor
+      logConsole("Proponiendo grupo:", finalGroup);
+      const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentRound.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "player": player, "password": currentPassword },
+        body: JSON.stringify({ group: finalGroup })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      logConsole(`PATCH /api/games/${currentGameId}/rounds/${currentRound.id}`, data);
+
+      if (res.ok) {
+        alert(data.msg || "Grupo propuesto correctamente.");
+        await refreshGame(); // Refrescar el estado del juego para ver los cambios
+      } else {
+        alert(data.msg || `Error al proponer el grupo (${res.status}).`);
+      }
+    }
+
+
+    async function voteGroup() {
+      if (!currentGameId) return alert("Primero obtén el juego.");
+
+      // Obtener rondas
+      const roundsRes = await fetch(`${server}/api/games/${currentGameId}/rounds`, {
+        headers: { "player": player, "password": currentPassword }
+      });
+      const roundsData = await roundsRes.json();
+      const rounds = roundsData.data || [];
+
+      // Buscar la ronda que este en votacion
+      const currentVotingRound = rounds.find(r => r.status === "voting");
+      if (!currentVotingRound) {
+        return alert("No hay ninguna ronda en votación actualmente.");
+      }
+
+      // Preguntar al jugador
+      const vote = confirm("¿Votar a favor del grupo?");
+
+      // Enviar voto a la ronda correcta
+      const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentVotingRound.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "player": player, "password": currentPassword },
+        body: JSON.stringify({ vote })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        alert(data.msg || "Voto registrado");
+        await getRounds();
+      } else {
+        alert(data.msg || `Error (${res.status})`);
+      }
+    }
+
+
+    async function sendAction(action) {
+      if (!currentRoundId) return alert("Primero obtén la ronda.");
+      // protección adicional: impedir que ciudadanos envíen la acción de sabotear
+      const isEnemyLocal = Array.isArray(lastGame?.enemies) && lastGame.enemies.includes(player);
+      if (action === false && !isEnemyLocal) {
+        return alert("No tienes permiso para sabotear (no eres psicópata).");
+      }
+
+      const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentRoundId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "player": player, "password": currentPassword },
+        body: JSON.stringify({ action })
+      });
+      const data = await res.json().catch(() => ({}));
+      logConsole(`PUT /api/games/${currentGameId}/rounds/${currentRoundId}`, data);
+      alert(data.msg || (res.ok ? "Acción enviada" : `Error (${res.status})`));
+      await getRounds();
+    }
+
+    /* ---------- Autorefresh ---------- */
+    function startAutoRefresh() {
+      if (autoRefresh) clearInterval(autoRefresh);
+      autoRefresh = setInterval(() => {
+        refreshGame();
+      }, 5000);
+      logConsole("Autorefresh activado (cada 5s)");
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefresh) clearInterval(autoRefresh);
+      autoRefresh = null;
+      logConsole("Autorefresh desactivado");
+    }
+
+    function toggleAutoRefresh(e) {
+      autoOn = !autoOn;
+      const btn = e && e.target ? e.target : null;
+      if (btn) btn.textContent = `Autorefresh: ${autoOn ? "On" : "Off"}`;
+      if (autoOn) startAutoRefresh(); else stopAutoRefresh();
+    }
+  </script>
+</body>
+
+</html>
