@@ -1,0 +1,24 @@
+{
+  "name": "proyecto",
+  "version": "1.0.0",
+  "description": "Frontend para ContaminaDos",
+  "homepage": "https://github.com/KevinFBG/Proyecto-Redes-ContaminaDOS#readme",
+  "bugs": {
+    "url": "https://github.com/KevinFBG/Proyecto-Redes-ContaminaDOS/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KevinFBG/Proyecto-Redes-ContaminaDOS.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "start": "http-server . -c-1",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
