@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ContaminaDOS 🌱</title>
+    <link rel="stylesheet" href="../styles/style.css">
+</head>
+
+<body>
+    <header>
+        <h1>🌍 ContaminaDOS</h1>
+        <p>Frontend Grupo E</p>
+        <p>Jugador:</p>
+        <p id="activePlayerName"></p>
+    </header>
+
+    <main>
+        <section>
+            <h2>Conexión</h2>
+            <div class="row">
+                <input id="serverUrl" placeholder="Servidor" />
+                <button onclick="connect()">Conectar</button>
+            </div>
+            <small class="hint">https://contaminados.akamai.meseguercr.com
+            </small>
+            <p id="connStatus"></p>
+        </section>
+
+        <section id="playerSection" style="display:none;">
+            <h2>Jugador y partida</h2>
+
+            <div class="row">
+                <input id="playerName" placeholder="Nombre del jugador (3–20)" />
+            </div>
+
+            <div class="row">
+                <input id="gameName" placeholder="Nombre de la partida (3–20)" />
+                <input id="gamePassword" placeholder="Contraseña de la partida (opcional, 3–20)" />
+            </div>
+
+            <div class="row">
+                <button onclick="createGame()">Crear partida</button>
+            </div>
+
+            <div class="row">
+                <input id="searchName" placeholder="Nombre de la partida a buscar" />
+                <button onclick="searchGame()">Buscar partida</button>
+            </div>
+
+            <div class="row">
+                <select id="searchStatus">
+                    <option value="">Estado: cualquiera</option>
+                    <option value="lobby">lobby</option>
+                    <option value="rounds">rounds</option>
+                    <option value="ended">ended</option>
+                </select>
+                <input type="number" id="searchPage" min="0" value="0" placeholder="Rango 0" />
+                <input type="number" id="searchLimit" min="1" max="50" value="50" placeholder="Rango Xnum" />
+            </div>
+        </section>
+
+
+        <section id="gamesList" style="display:none;">
+            <h2>Partidas</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Jugadores</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="gamesTable"></tbody>
+            </table>
+        </section>
+
+        <section id="gameStatus" style="display:none;">
+            <h2> Partida</h2>
+            <div id="statusBox" class="status">Esperando información...</div>
+            <div class="flex">
+                <span id="decadePill" class="pill" style="display:none;">Década: —</span>
+                <span id="scorePill" class="pill" style="display:none;">Puntaje — Ciudadanos: 0 | Psicópatas: 0</span>
+                <span id="phasePill" class="pill" style="display:none;">Fase: —</span>
+                <span id="enemiesPill" class="pill" style="display:none;">Psicópatas: —</span>
+            </div>
+            <div class="row">
+                <button id="startBtn" onclick="startGame()" disabled style="display:none;">Iniciar partida</button>
+                <button onclick="toggleAutoRefresh(event)">Autorefresh: Off</button>
+            </div>
+            <small class="hint">Solo el creador puede iniciar; se requieren entre 5 y 10 jugadores.</small>
+        </section>
+
+        <section id="roundSection" style="display:none;">
+            <h2>5️Rondas</h2>
+            <div id="roundIdDisplay">ID de Ronda: N/A</div>
+            <div id="roundInfo" class="phase">Sin datos</div>
+            <div id="roundActions" style="margin-top:1rem;">
+                <div class="row">
+                    <button id="btnPropose" onclick="proposeGroup()" style="display:none;">📋 Proponer grupo</button>
+                    <button id="btnVote" onclick="voteGroup()" style="display:none;">🗳️ Votar grupo</button>
+                    <button id="btnCollab" onclick="sendAction(true)" style="display:none;">✅ Colaborar</button>
+                    <button id="btnSabot" onclick="sendAction(false)" style="display:none;">💀 Sabotear</button>
+                </div>
+                <small class="hint" id="groupSizeHint" style="display:none;">Tamaño requerido de grupo: —</small>
+            </div>
+        </section>
+
+        <section style="display: none;">
+            <h2>🧩 Consola de depuración</h2>
+            <div id="console">Esperando acciones...</div>
+        </section>
+    </main>
+
+    <script src="../logic/index.js" type="module"></script>
+</body>
+
+</html>
