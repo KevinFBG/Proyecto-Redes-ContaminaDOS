@@ -42,16 +42,17 @@ export async function createGame() {
     const data = await res.json().catch(() => ({}));
     logConsole("POST /api/games", data);
 
-    if (res.status === 201) {
+    if (res.status === 200) {
         setCurrentGameId(data.data.id);
         setCurrentPassword(password || "nopass"); // store for headers
-        alert(data.msg || "Partida creada.");
+        
         document.getElementById("playerSection").style.display = "none";
         document.getElementById("gameStatus").style.display = "block";
+        document.getElementById("gamesList").style.display = "none";
         updatePlayerDisplay();
-
+        alert(data.msg || "Partida creada.");
         await refreshGame();
-        if (autoOn) startAutoRefresh();
+         startAutoRefresh();
     } else {
         alert(data.msg || `Error al crear (${res.status})`);
     }
@@ -78,14 +79,26 @@ export async function searchGame() {
     table.innerHTML = "";
     (data.data || []).forEach(g => {
         const requiresPassword = !!g.password;
+        // Obtener la cantidad de jugadores
+        const playerCount = Array.isArray(g.players) ? g.players.length : 0;
+        
+        //COMPROBAR SI LA PARTIDA ESTÁ LLENA
+        const MAX_PLAYERS = 10;
+        const isFull = playerCount >= MAX_PLAYERS;
+        
+        // Configurar el texto y el estado del botón
+        const buttonText = isFull ? `LLENO (${playerCount})` : "Entrar";
+        const disabledAttr = isFull ? "disabled" : "";
+
+
         const row = document.createElement("tr");
         // Nota: se convierte requiresPassword a string porque se pasa al HTML
         row.innerHTML = `
         <td>${g.id}</td>
         <td>${g.name}</td>
-        <td>${Array.isArray(g.players) ? g.players.length : 0}</td>
+        <td>${playerCount}</td>
         <td>${g.status}</td>
-        <td><button onclick="joinGame('${g.id}','${g.owner}','${requiresPassword}')">Entrar</button></td>`;
+        <td><button onclick="joinGame('${g.id}','${requiresPassword}')" ${disabledAttr}>${buttonText}</button></td>`;
         table.appendChild(row);
     });
     document.getElementById("gamesList").style.display = "block";
@@ -101,19 +114,19 @@ export async function joinGame(gameId, owner, requiresPassword) {
     setInvalid(playerEl, !vPlayer);
     if (!vPlayer) return alert("Ingrese su nombre de jugador (3–20).");
 
-    // Si es el dueño, fuerza unirse   
-    if (owner === player) {
-        alert("Eres el dueño de la partida, ya estás dentro.");
-        setCurrentGameId(gameId);
-        document.getElementById("playerSection").style.display = "none";
-        document.getElementById("gamesList").style.display = "none";
-        document.getElementById("gameStatus").style.display = "block";
-        updatePlayerDisplay();
+    // // Si es el dueño, fuerza unirse   
+    // if (owner === player) {
+    //     alert("Eres el dueño de la partida, ya estás dentro.");
+    //     setCurrentGameId(gameId);
+    //     document.getElementById("playerSection").style.display = "none";
+    //     document.getElementById("gamesList").style.display = "none";
+    //     document.getElementById("gameStatus").style.display = "block";
+    //     updatePlayerDisplay();
 
-        await refreshGame();
-        if (autoOn) startAutoRefresh();
-        return;
-    }
+    //     await refreshGame();
+    //     if (autoOn) startAutoRefresh();
+    //     return;
+    // }
 
     let pass = "nopass"; // default no password
     // El HTML pasa true como string, verificar ambos
@@ -158,8 +171,13 @@ export async function startGame() {
     logConsole(`HEAD /api/games/${currentGameId}/start`, { status: res.status });
     if (res.ok) {
         alert("Partida iniciada");
+        await new Promise(resolve => setTimeout(resolve, 500));
+        getRounds();
+        refreshGame();
+         document.getElementById("roundSection").style.display = "block";
     } else {
         alert(`No se pudo iniciar (${res.status})`);
+        
     }
     await refreshGame();
 }
@@ -401,9 +419,12 @@ export async function proposeGroup() {
         return alert(`No se pudo determinar el tamaño de grupo para ${playersCount} jugadores en la década ${decade}.`);
     }
 
+
+
+
     // Pedir al usuario los miembros del grupo
-    const otherMembersCount = requiredSize - 1;
-    const promptMessage = `Eres el líder. Se necesita un grupo de ${requiredSize}. Ingresa los nombres de los otros ${otherMembersCount} miembros, separados por comas.`;
+    const promptMessage = `Eres el líder. Se necesita un grupo de ${requiredSize} en total. 
+    Ingresa **todos** los nombres de los miembros del grupo, separados por comas (puedes incluirte o no).`;
 
     const membersInput = prompt(promptMessage);
     if (membersInput === null) return; // El usuario canceló
@@ -411,10 +432,15 @@ export async function proposeGroup() {
     // Procesar y validar la entrada
     const proposedMembers = membersInput.split(',').map(name => name.trim()).filter(Boolean);
 
-    // 1. El líder no debe estar en la lista de 'otros miembros'
-    const leaderInProposed = proposedMembers.includes(player);
-    if (leaderInProposed) {
-        return alert("Error: No incluyas tu nombre en la lista de 'otros miembros'. El líder ya se incluye automáticamente.");
+    // // 1. El líder no debe estar en la lista de 'otros miembros'
+    // const leaderInProposed = proposedMembers.includes(player);
+    // if (leaderInProposed) {
+    //     return alert("Error: No incluyas tu nombre en la lista de 'otros miembros'. El líder ya se incluye automáticamente.");
+    // }
+
+    // 1. Verificar el tamaño total del grupo
+    if (proposedMembers.length !== requiredSize) {
+        return alert(`Error: Se requieren ${requiredSize} miembros en total, pero has propuesto un grupo de ${proposedMembers.length}. Inténtalo de nuevo.`);
     }
 
     // 2. Verificar duplicados
@@ -429,8 +455,10 @@ export async function proposeGroup() {
         return alert(`Error: Los siguientes nombres no son jugadores válidos en la partida: ${invalidMembers.join(', ')}.`);
     }
 
-    // Construir el grupo final, incluyendo al líder
-    const finalGroup = [player, ...proposedMembers];
+    // // Construir el grupo final, incluyendo al líder
+    // const finalGroup = [player, ...proposedMembers];
+    const finalGroup = proposedMembers;
+
 
     if (finalGroup.length !== requiredSize) {
         return alert(`Error: Se requieren ${requiredSize} miembros en total, pero has propuesto un grupo de ${finalGroup.length}. Inténtalo de nuevo.`);
