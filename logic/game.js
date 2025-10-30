@@ -52,7 +52,7 @@ export async function createGame() {
         updatePlayerDisplay();
         alert(data.msg || "Partida creada.");
         await refreshGame();
-         startAutoRefresh();
+         if (autoOn) startAutoRefresh();
     } else {
         alert(data.msg || `Error al crear (${res.status})`);
     }
@@ -303,7 +303,7 @@ export async function getRounds() {
     };
     
     // Ocultar todos los botones primero
-    Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
+    //Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
     // No hay rondas activas
     if (rounds.length === 0 || !lastRound) {
@@ -317,7 +317,7 @@ export async function getRounds() {
     }
 
     // Usar la ronda más reciente para el estado
-    const currentRound = lastRound;
+    const currentRound = rounds.find(r => r.result === "none") || lastRound;
     setCurrentRoundId(currentRound.id);
 
     // Década actual (1..5, corresponde al número de ronda)
@@ -349,8 +349,8 @@ export async function getRounds() {
     // Ocultar todos los botones primero
     Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
-    switch (currentRound.phase) {
-        case "proposal":
+    switch (currentRound.status) {
+        case "waiting-on-leader":
             if (isLeader && btns.propose) {
                 btns.propose.style.display = "inline-block";
                 btns.propose.disabled = false;
@@ -364,7 +364,8 @@ export async function getRounds() {
                 btns.vote.disabled = false;
             }
             break;
-        case "action":
+        
+        case "waiting-on-group":
             if (isGroupMember) {
                 // Verificar si el jugador ya actuó
                 const hasActed = currentRound.actions?.find(a => a.player === player);
@@ -373,7 +374,7 @@ export async function getRounds() {
                     if (btns.sabot) btns.sabot.style.display = isEnemy ? "inline-block" : "none";
                 }
             }
-            break;
+            break; 
     }
 
     //  Verificar si alguien ya ganó (3 puntos)
@@ -495,7 +496,7 @@ export async function voteGroup() {
     const rounds = roundsData.data || [];
 
     // Buscar la ronda que este en votacion
-    const currentVotingRound = rounds.find(r => r.id === currentRoundId && r.phase === "voting");
+    const currentVotingRound = rounds.find(r => r.id === currentRoundId && r.status === "voting");
     if (!currentVotingRound) {
         return alert("No hay ninguna ronda en votación actualmente.");
     }
