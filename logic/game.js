@@ -134,7 +134,7 @@ export async function searchGame() {
 }
 
 /* ---------- Join (skip for owner) ---------- */
-export async function joinGame(gameId, owner, requiresPassword) {
+export async function joinGame(gameId, requiresPassword, owner) {
     const playerEl = document.getElementById("playerName");
     const newPlayer = playerEl.value.trim();
     setPlayer(newPlayer); // Actualizar la variable global
