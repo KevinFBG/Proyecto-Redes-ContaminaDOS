@@ -8,8 +8,6 @@ import {
 import { startAutoRefresh, stopAutoRefresh } from './autorefresh.js';
 
 // Normaliza los posibles strings de fase/estado que el servidor puede devolver
-// (p.ej. "vote1", "voting", "waiting-on-leader") a tres categorías canónicas:
-// 'proposal', 'voting', 'action' (o 'waiting' para estados intermedios).
 function normalizePhase(phase, status) {
 
     const s = status ? String(status).toLowerCase() : null;
@@ -46,7 +44,7 @@ export async function createGame() {
     const name = nameEl.value.trim();
     const password = pwdEl.value.trim();
 
-    setPlayer(newPlayer); // Actualizar la variable global 'player' antes de validar
+    setPlayer(newPlayer); // Actualizar la variable global player antes de validar
 
     const vPlayer = validateLength(player, 3, 20);
     const vName = validateLength(name, 3, 20);
@@ -121,7 +119,6 @@ export async function searchGame() {
 
 
         const row = document.createElement("tr");
-        // Nota: se convierte requiresPassword a string porque se pasa al HTML
         row.innerHTML = `
         <td>${g.id}</td>
         <td>${g.name}</td>
@@ -143,21 +140,8 @@ export async function joinGame(gameId, requiresPassword, owner) {
     setInvalid(playerEl, !vPlayer);
     if (!vPlayer) return alert("Ingrese su nombre de jugador (3–20).");
 
-    // // Si es el dueño, fuerza unirse   
-    // if (owner === player) {
-    //     alert("Eres el dueño de la partida, ya estás dentro.");
-    //     setCurrentGameId(gameId);
-    //     document.getElementById("playerSection").style.display = "none";
-    //     document.getElementById("gamesList").style.display = "none";
-    //     document.getElementById("gameStatus").style.display = "block";
-    //     updatePlayerDisplay();
-
-    //     await refreshGame();
-    //     if (autoOn) startAutoRefresh();
-    //     return;
-    // }
-
     let pass = "nopass"; // default no password
+
     // El HTML pasa true como string, verificar ambos
     if (requiresPassword === true || requiresPassword === "true") { 
         pass = prompt("La partida tiene contraseña. Ingrésela:") || "";
@@ -318,7 +302,7 @@ export async function refreshGame() {
         if (enemiesPill) enemiesPill.style.display = "none";
     }
 
-    // Llamar a getRounds() para poblar la info de rondas y actualizar botones de acción
+    // Llamar a getRounds() para la info de rondas y actualizar botones de acción
     await getRounds();
 }
 
@@ -338,7 +322,7 @@ export async function getRounds() {
     let displayRounds = sortRoundsAsc(rounds.slice());
 
     // Determinar la ronda "activa" más reciente (no 'ended').
-    // Preferir la ronda más reciente cuyo canonicalPhase !== 'ended'. Si no hay, tomar la última.
+    // Preferir la ronda más reciente que no haya terminado.
     let lastRound = displayRounds[displayRounds.length - 1];
     for (let i = displayRounds.length - 1; i >= 0; i--) {
         const cand = displayRounds[i];
@@ -372,19 +356,19 @@ export async function getRounds() {
     const currentRound = lastRound;
     setCurrentRoundId(currentRound.id);
 
-    // Normalizar la fase (el servidor puede devolver cosas como "vote1", "waiting-on-leader", etc.)
+    // Normalizar la fase 
     const canonicalPhase = normalizePhase(currentRound.phase, currentRound.status);
 
     // Década actual (1..5, corresponde al número de ronda)
     const decade = displayRounds.length;
 
-    // Puntajes (contar victorias en todas las rondas)
+    // Puntajes 
     const citizensWins = displayRounds.filter(r => r.result === "citizens").length;
     const enemiesWins = displayRounds.filter(r => r.result === "enemies").length;
 
     // Mostrar información de ronda en la tabla de historial
     const decadeEl2 = document.getElementById("decadePill"); if (decadeEl2) decadeEl2.textContent = `Década: ${decade}`;
-    // phasePill was removed from the header (duplicate); keep score pill updated
+  
     const scorePillEl = document.getElementById("scorePill"); if (scorePillEl) scorePillEl.textContent = `Puntaje — Ejemplares: ${citizensWins} | Psicópatas: ${enemiesWins}`;
     
     // Mostrar al dirigente comunal
@@ -414,7 +398,7 @@ export async function getRounds() {
                     const status = r.status || '—';
                     const phase = r.phase || '—';
                     const canonical = normalizePhase(r.phase, r.status);
-                    // Intento de votación: vote1 -> 1, vote2 -> 2, vote3 -> 3 (si aplica)
+                    // Intento de votación: vote1 -> 1, vote2 -> 2, vote3 -> 3 
                     let intento = '—';
                     const ph = (r.phase || '').toString().toLowerCase();
                     const m = ph.match(/vote\s*-?\s*(\d+)/i) || ph.match(/vote(\d+)/i);
@@ -551,7 +535,7 @@ export async function proposeGroup() {
     }
     // Asegurarse de usar la misma ordenación cronológica que getRounds()
     const sorted = sortRoundsAsc(roundsData.data.slice());
-    // Buscar la ronda que esté en fase de 'proposal' (esperando propuesta del líder).
+    // Buscar la ronda que esté en fase de propuesta del líder
     let currentRound = null;
     for (let i = sorted.length - 1; i >= 0; i--) {
         const r = sorted[i];
@@ -587,31 +571,25 @@ export async function proposeGroup() {
     // Procesar y validar la entrada
     const proposedMembers = membersInput.split(',').map(name => name.trim()).filter(Boolean);
 
-    // // 1. El líder no debe estar en la lista de 'otros miembros'
-    // const leaderInProposed = proposedMembers.includes(player);
-    // if (leaderInProposed) {
-    //     return alert("Error: No incluyas tu nombre en la lista de 'otros miembros'. El líder ya se incluye automáticamente.");
-    // }
-
-    // 1. Verificar el tamaño total del grupo
+    
+    // Verificar el tamaño total del grupo
     if (proposedMembers.length !== requiredSize) {
         return alert(`Error: Se requieren ${requiredSize} miembros en total, pero has propuesto un grupo de ${proposedMembers.length}. Inténtalo de nuevo.`);
     }
 
-    // 2. Verificar duplicados
+    // Verificar duplicados
     const memberSet = new Set(proposedMembers);
     if (memberSet.size !== proposedMembers.length) {
         return alert("Error: La lista de 'otros miembros' contiene nombres duplicados.");
     }
     
-    // 3. Verificar que sean jugadores válidos
+    // Verificar que sean jugadores válidos
     const invalidMembers = proposedMembers.filter(member => !lastGame.players.includes(member));
     if (invalidMembers.length > 0) {
         return alert(`Error: Los siguientes nombres no son jugadores válidos en la partida: ${invalidMembers.join(', ')}.`);
     }
 
-    // // Construir el grupo final, incluyendo al líder
-    // const finalGroup = [player, ...proposedMembers];
+    // // Construir el grupo final
     const finalGroup = proposedMembers;
 
 
@@ -632,10 +610,10 @@ export async function proposeGroup() {
 
     if (res.ok) {
         alert(data.msg || "Grupo propuesto correctamente.");
-        // Dar tiempo al servidor para procesar el cambio
+        // Dar tiempo para procesar el cambio y refrescar dos veces 
         await new Promise(resolve => setTimeout(resolve, 500));
         await refreshGame();
-        // Refrescar una vez más para asegurar que tenemos el estado más reciente
+   
         await new Promise(resolve => setTimeout(resolve, 500));
         await refreshGame();
     } else {
@@ -653,15 +631,15 @@ export async function voteGroup() {
     });
     const roundsData = await roundsRes.json();
     const rounds = roundsData.data || [];
-    // Ordenar las rondas y buscar la ronda que esté en votación (aceptar variantes como 'vote1')
+    // Ordenar las rondas y buscar la ronda que esté en votación 
     const sorted = sortRoundsAsc(rounds.slice());
-    // Preferir la ronda con fase 'voting' (más reciente)
+    // Preferir la ronda con fase 'voting'
     let currentVotingRound = null;
     for (let i = sorted.length - 1; i >= 0; i--) {
         const r = sorted[i];
         if (normalizePhase(r.phase, r.status) === 'voting') { currentVotingRound = r; break; }
     }
-    // Fallback: si currentRoundId coincide con una ronda de 'voting', usarla
+    // si currentRoundId coincide con una ronda de 'voting'
     if (!currentVotingRound) {
         currentVotingRound = sorted.find(r => r.id === currentRoundId && normalizePhase(r.phase, r.status) === 'voting');
     }
@@ -692,7 +670,7 @@ export async function voteGroup() {
 export async function sendAction(action) {
     if (!currentRoundId) return alert("Primero obtén la ronda.");
 
-    // protección adicional: impedir que ciudadanos envíen la acción de sabotear
+    // impedir que ciudadanos envíen la acción de sabotear
     const isEnemyLocal = Array.isArray(lastGame?.enemies) && lastGame.enemies.includes(player);
     if (action === false && !isEnemyLocal) {
         return alert("No tienes permiso para sabotear (no eres psicópata).");
@@ -709,8 +687,7 @@ export async function sendAction(action) {
     await refreshGame();
 }
 
-// Ordena un array de rondas cronológicamente en orden ascendente (más antiguo primero).
-// Usa createdAt/created_at/created si están presentes, sino intenta extraer timestamp de ObjectId (24 hex).
+// Ordena un array de rondas cronológicamente 
 function sortRoundsAsc(rounds) {
     if (!Array.isArray(rounds)) return [];
     const copy = rounds.slice();
@@ -738,7 +715,6 @@ function sortRoundsAsc(rounds) {
         return copy;
     }
 
-    // Fallback heurístico: si el primer elemento parece activo y el último no, invertir
     const first = copy[0];
     const last = copy[copy.length - 1];
     const firstActive = (first && (first.result === 'none' || normalizePhase(first.phase, first.status) !== 'ended'));

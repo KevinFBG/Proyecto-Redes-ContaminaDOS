@@ -1,6 +1,6 @@
 // logic/utils.js
 
-// 1. Variables de Estado Globales (EXPORTADAS)
+// Variables de Estado Globales
 export let server = "";
 export let player = "";
 export let currentPassword = "nopass";
@@ -44,7 +44,7 @@ export function updatePlayerDisplay() {
     }
 }
 
-/* ---------- Game rules (PDF) ---------- */
+/* ---------- Game rules ---------- */
 // Cant jugadores, decada -> tamaño grupo
 export function groupSizeFor(playersCount, decadeNumber) {
     const t = {

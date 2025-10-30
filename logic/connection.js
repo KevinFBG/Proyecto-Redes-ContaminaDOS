@@ -13,7 +13,7 @@ export function connect() {
     // Almacena el servidor en la variable de estado global
     setServer(serverInput);
     
-    document.getElementById("connStatus").textContent = "✅ Conectado a: " + serverInput;
+    document.getElementById("connStatus").textContent = "Conectado a: " + serverInput;
     
     // Ocultar sección de conexión y mostrar la de jugador
     document.querySelector("section").style.display = "none"; 

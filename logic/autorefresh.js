@@ -1,6 +1,6 @@
 // logic/autorefresh.js
 
-import { refreshGame } from './game.js'; // Necesita esta función del juego
+import { refreshGame } from './game.js';
 import { logConsole, toggleAutoOn, autoOn } from './utils.js';
 
 let autoRefresh = null;
@@ -20,7 +20,7 @@ export function stopAutoRefresh() {
 }
 
 export function toggleAutoRefresh(e) {
-    const newAutoOn = toggleAutoOn(); // Cambia el estado en utils.js
+    const newAutoOn = toggleAutoOn();
     const btn = e && e.target ? e.target : null;
     if (btn) btn.textContent = `Autorefresh: ${newAutoOn ? "On" : "Off"}`;
     if (newAutoOn) startAutoRefresh(); else stopAutoRefresh();
