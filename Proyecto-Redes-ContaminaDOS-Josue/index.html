@@ -83,22 +83,25 @@
             <div class="flex">
                 <span id="decadePill" class="pill" style="display:none;">Década: —</span>
                 <span id="scorePill" class="pill" style="display:none;">Puntaje — Ejemplares: 0 | Psicópatas: 0</span>
-                <span id="phasePill" class="pill" style="display:none;">Fase: —</span>
                 <span id="leaderPill" class="pill" style="display:none;">Dirigente: —</span>
                 <span id="enemiesPill" class="pill" style="display:none;">Psicópatas: —</span>
+            </div>
+            <!-- Banner del ganador de la partida -->
+            <div id="gameWinner" style="display:none;margin-top:0.75rem;padding:0.5rem;border-radius:6px;font-weight:600;
+                background:linear-gradient(90deg,#f7f7f7,#e9f7ef);color:#1b5e20;">
+                <!-- Texto dinámico: Ejemplares ganaron / Psicópatas ganaron -->
             </div>
             <div class="row">
                 <button id="startBtn" onclick="startGame()" disabled style="display:none;">Iniciar partida</button>
                 <button onclick="toggleAutoRefresh(event)">Autorefresh: Off</button>
             </div>
-            <small class="hint">Solo el creador puede iniciar; se requieren entre 5 y 10 jugadores.</small>
+            <small id="startHint" class="hint">Solo el creador puede iniciar; se requieren entre 5 y 10 jugadores.</small>
         </section>
 
         <section id="roundSection" style="display:none;">
-            <h2>5️Rondas</h2>
-            <div id="roundIdDisplay">ID de Ronda: N/A</div>
-            <div id="roundInfo" class="phase">Sin datos</div>
+                        
             <div id="roundActions" style="margin-top:1rem;">
+               
                 <div class="row">
                     <button id="btnPropose" onclick="proposeGroup()" style="display:none;">📋 Proponer grupo</button>
                     <button id="btnVote" onclick="voteGroup()" style="display:none;">🗳️ Votar grupo</button>
@@ -106,6 +109,10 @@
                     <button id="btnSabot" onclick="sendAction(false)" style="display:none;">💀 Sabotear</button>
                 </div>
                 <small class="hint" id="groupSizeHint" style="display:none;">Tamaño requerido de grupo: —</small>
+            </div>
+            <!-- Historial de rondas: se renderiza dinámicamente desde getRounds() -->
+            <div id="roundsHistory" style="margin-top:1rem;">
+                <!-- Aquí se insertará una tabla con todas las rondas -->
             </div>
         </section>
 
