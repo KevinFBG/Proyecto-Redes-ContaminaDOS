@@ -45,14 +45,14 @@ export async function createGame() {
     if (res.status === 200) {
         setCurrentGameId(data.data.id);
         setCurrentPassword(password || "nopass"); // store for headers
-        
+
         document.getElementById("playerSection").style.display = "none";
         document.getElementById("gameStatus").style.display = "block";
         document.getElementById("gamesList").style.display = "none";
         updatePlayerDisplay();
         alert(data.msg || "Partida creada.");
         await refreshGame();
-         if (autoOn) startAutoRefresh();
+        if (autoOn) startAutoRefresh();
     } else {
         alert(data.msg || `Error al crear (${res.status})`);
     }
@@ -81,11 +81,11 @@ export async function searchGame() {
         const requiresPassword = !!g.password;
         // Obtener la cantidad de jugadores
         const playerCount = Array.isArray(g.players) ? g.players.length : 0;
-        
+
         //COMPROBAR SI LA PARTIDA ESTÁ LLENA
         const MAX_PLAYERS = 10;
         const isFull = playerCount >= MAX_PLAYERS;
-        
+
         // Configurar el texto y el estado del botón
         const buttonText = isFull ? `LLENO (${playerCount})` : "Entrar";
         const disabledAttr = isFull ? "disabled" : "";
@@ -130,7 +130,7 @@ export async function joinGame(gameId, owner, requiresPassword) {
 
     let pass = "nopass"; // default no password
     // El HTML pasa true como string, verificar ambos
-    if (requiresPassword === true || requiresPassword === "true") { 
+    if (requiresPassword === true || requiresPassword === "true") {
         pass = prompt("La partida tiene contraseña. Ingrésela:") || "";
         const vPwd = validateLength(pass, 3, 20);
         if (!vPwd) return alert("La contraseña debe tener entre 3 y 20 caracteres.");
@@ -174,10 +174,10 @@ export async function startGame() {
         await new Promise(resolve => setTimeout(resolve, 500));
         getRounds();
         refreshGame();
-         document.getElementById("roundSection").style.display = "block";
+        document.getElementById("roundSection").style.display = "block";
     } else {
         alert(`No se pudo iniciar (${res.status})`);
-        
+
     }
     await refreshGame();
 }
@@ -223,10 +223,10 @@ export async function refreshGame() {
 
     // Considerar ambos estados como "partida iniciada"
     const started = (g.status === "started" || g.status === "rounds");
-
+    const ended = (g.status === "ended");
     // Mostrar solo nombre y jugadores + estado (no roles) hasta iniciar
     const statusEl = document.getElementById("statusBox");
-    statusEl.textContent = `Partida: ${g.name} | Jugadores: ${g.players.join(", ")} | Estado: ${g.status}`;
+    statusEl.textContent = `Partida: ${g.name} | Jugadores: ${g.players.join(", ")} | Estado: ${g.status} `;
 
     // Habilitar/deshabilitar botón de inicio (si está visible)
     const canStartByCount = playerCount >= 5 && playerCount <= 10;
@@ -301,7 +301,7 @@ export async function getRounds() {
         collab: document.getElementById("btnCollab"),
         sabot: document.getElementById("btnSabot")
     };
-    
+
     // Ocultar todos los botones primero
     //Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
@@ -345,7 +345,7 @@ export async function getRounds() {
     const isLeader = currentRound.leader === player;
     const isGroupMember = currentRound.group?.includes(player);
     const isEnemy = Array.isArray(lastGame?.enemies) && lastGame.enemies.includes(player);
-    
+
     // Ocultar todos los botones primero
     Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
@@ -364,7 +364,7 @@ export async function getRounds() {
                 btns.vote.disabled = false;
             }
             break;
-        
+
         case "waiting-on-group":
             if (isGroupMember) {
                 // Verificar si el jugador ya actuó
@@ -374,23 +374,24 @@ export async function getRounds() {
                     if (btns.sabot) btns.sabot.style.display = isEnemy ? "inline-block" : "none";
                 }
             }
-            break; 
+            break;
     }
 
-    //  Verificar si alguien ya ganó (3 puntos)
-    const partidaTerminada = citizensWins >= 3 || enemiesWins >= 3;
+const partidaTerminada = citizensWins >= 3 || enemiesWins >= 3;
+
     if (partidaTerminada) {
-        const ganador = citizensWins >= 3 ? "🎉 ¡Los Ciudadanos ganaron la partida!" : "💀 ¡Los Psicópatas ganaron la partida!";
-        alert(ganador);
+        const statusEl = document.getElementById("statusBox"); // Acceder al elemento
+        
+        const ganador = citizensWins >= 3 
+            ? "Ganador: 🎉 ¡Los Ciudadanos ganaron la partida!" 
+            : "Ganador: 💀 ¡Los Psicópatas ganaron la partida!";
+        statusEl.textContent += ` | ${ganador}`;
+
         logConsole("Partida finalizada", { citizensWins, enemiesWins });
         stopAutoRefresh();
-        // Deshabilitar botones
-        document.querySelectorAll("button").forEach(b => {
-            if (b.id !== "startBtn" && b.id !== "searchBtn" && b.textContent.includes("Autorefresh")) {
-                b.disabled = true;
-            }
-        });
-    }
+
+
+}
 }
 
 export async function proposeGroup() {
@@ -449,7 +450,7 @@ export async function proposeGroup() {
     if (memberSet.size !== proposedMembers.length) {
         return alert("Error: La lista de 'otros miembros' contiene nombres duplicados.");
     }
-    
+
     // 3. Verificar que sean jugadores válidos
     const invalidMembers = proposedMembers.filter(member => !lastGame.players.includes(member));
     if (invalidMembers.length > 0) {
