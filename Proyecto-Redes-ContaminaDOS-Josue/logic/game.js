@@ -7,6 +7,35 @@ import {
 } from './utils.js';
 import { startAutoRefresh, stopAutoRefresh } from './autorefresh.js';
 
+// Normaliza los posibles strings de fase/estado que el servidor puede devolver
+// (p.ej. "vote1", "voting", "waiting-on-leader") a tres categorías canónicas:
+// 'proposal', 'voting', 'action' (o 'waiting' para estados intermedios).
+function normalizePhase(phase, status) {
+
+    const s = status ? String(status).toLowerCase() : null;
+    const ph = phase ? String(phase).toLowerCase() : null;
+
+    if (s) {
+        if (s === "waiting-on-leader" || (s.includes("waiting") && s.includes("leader"))) return "proposal";
+        if (s === "voting" || s === "vote") return "voting";
+        if (s === "waiting-on-group" || (s.includes("waiting") && s.includes("group"))) return "action";
+        if (s === "ended") return "ended";
+    }
+
+    // Si no hay mapping por 'status', intentar normalizar por 'phase'
+    if (ph) {
+        if (ph.startsWith("vote")) return "voting"; // vote1, vote2, vote3
+        if (ph.startsWith("propos") || ph === "proposal") return "proposal";
+        if (ph.startsWith("action") || ph.includes("act")) return "action";
+    }
+
+    // Fallback genérico: si contiene 'wait' devolver 'waiting'
+    const any = (ph || s || "");
+    if (any.includes("wait") || any.includes("waiting")) return "waiting";
+
+    return any;
+}
+
 /* ---------- Create/Search ---------- */
 export async function createGame() {
     const playerEl = document.getElementById("playerName");
@@ -206,11 +235,10 @@ export async function refreshGame() {
     const roundSection = document.getElementById("roundSection");
     const decadePill = document.getElementById("decadePill");
     const scorePill = document.getElementById("scorePill");
-    const phasePill = document.getElementById("phasePill");
     const leaderPill = document.getElementById("leaderPill");
     const enemiesPill = document.getElementById("enemiesPill");
-    const roundInfo = document.getElementById("roundInfo");
     const groupSizeHint = document.getElementById("groupSizeHint");
+    const startHint = document.getElementById('startHint');
     const btns = {
         propose: document.getElementById("btnPropose"),
         vote: document.getElementById("btnVote"),
@@ -228,6 +256,8 @@ export async function refreshGame() {
 
     // Solo mostrar el botón de iniciar si soy el owner y la partida aún NO ha empezado
     if (startBtn) startBtn.style.display = (!started && isOwner) ? "inline-block" : "none";
+    // Mostrar el hint de inicio solo cuando estemos en el lobby
+    if (startHint) startHint.style.display = (g.status === 'lobby') ? 'block' : 'none';
 
     // Mostrar solo nombre y jugadores + estado (no roles) hasta iniciar
     const statusEl = document.getElementById("statusBox");
@@ -240,15 +270,22 @@ export async function refreshGame() {
     // Mostrar/ocultar toda la sección de rondas según estado
     if (roundSection) roundSection.style.display = started ? "block" : "none";
 
-    // Si la partida NO está iniciada: limpiar info de rondas y roles
+    // Si la partida NO está iniciada: si el juego terminó mostrar las rondas y el banner de ganador,
+    // si no terminó, limpiar info de rondas y roles como antes.
     if (!started) {
-        if (decadePill) decadePill.style.display = "none";
-        if (scorePill) scorePill.style.display = "none";
-        if (leaderPill) leaderPill.style.display = "none";
-        if (phasePill) phasePill.style.display = "none";
-        if (enemiesPill) enemiesPill.style.display = "none";
-        if (roundInfo) roundInfo.textContent = "";
-        if (groupSizeHint) groupSizeHint.style.display = "none";
+        if (g.status === 'ended') {
+            // Mostrar la sección de rondas para poder ver historial y banner
+            if (roundSection) roundSection.style.display = "block";
+            // Llamar a getRounds para poblar historial y mostrar banner de ganador si aplica
+            await getRounds();
+            return;
+        }
+
+    if (decadePill) decadePill.style.display = "none";
+    if (scorePill) scorePill.style.display = "none";
+    if (leaderPill) leaderPill.style.display = "none";
+    if (enemiesPill) enemiesPill.style.display = "none";
+    if (groupSizeHint) groupSizeHint.style.display = "none";
         Object.values(btns).forEach(b => { if (b) { b.style.display = "none"; b.disabled = false; } });
         setCurrentRoundId("");
         return;
@@ -257,7 +294,6 @@ export async function refreshGame() {
     // Si la partida está iniciada: mostrar roles/rondas y poblar datos
     if (decadePill) decadePill.style.display = "inline-block";
     if (scorePill) scorePill.style.display = "inline-block";
-    if (phasePill) phasePill.style.display = "inline-block";
     if (groupSizeHint) groupSizeHint.style.display = "block";
 
     // Ocultar todos los botones de acción hasta que getRounds determine cuál mostrar
@@ -298,7 +334,19 @@ export async function getRounds() {
     if (!res.ok) return;
 
     const rounds = data.data || [];
-    const lastRound = rounds[rounds.length - 1];
+    // Usar helper para obtener rondas en orden cronológico ascendente
+    let displayRounds = sortRoundsAsc(rounds.slice());
+
+    // Determinar la ronda "activa" más reciente (no 'ended').
+    // Preferir la ronda más reciente cuyo canonicalPhase !== 'ended'. Si no hay, tomar la última.
+    let lastRound = displayRounds[displayRounds.length - 1];
+    for (let i = displayRounds.length - 1; i >= 0; i--) {
+        const cand = displayRounds[i];
+        if (normalizePhase(cand.phase, cand.status) !== 'ended') {
+            lastRound = cand;
+            break;
+        }
+    }
 
     // Referencias a los botones de acción
     const btns = {
@@ -313,11 +361,9 @@ export async function getRounds() {
 
     // No hay rondas activas
     if (rounds.length === 0 || !lastRound) {
-        document.getElementById("roundInfo").textContent = "No hay rondas activas todavía.";
-        document.getElementById("decadePill").textContent = "Década: 0";
-        document.getElementById("phasePill").textContent = "Fase: —";
-        document.getElementById("scorePill").textContent = "Puntaje — Ejemplares: 0 | Psicópatas: 0";
-        document.getElementById("groupSizeHint").textContent = "Tamaño requerido de grupo: —";
+        const decadeEl = document.getElementById("decadePill"); if (decadeEl) decadeEl.textContent = "Década: 0";
+        const scoreEl = document.getElementById("scorePill"); if (scoreEl) scoreEl.textContent = "Puntaje — Ejemplares: 0 | Psicópatas: 0";
+        const groupSizeEl = document.getElementById("groupSizeHint"); if (groupSizeEl) groupSizeEl.textContent = "Tamaño requerido de grupo: —";
         setCurrentRoundId("");
         return;
     }
@@ -326,25 +372,26 @@ export async function getRounds() {
     const currentRound = lastRound;
     setCurrentRoundId(currentRound.id);
 
+    // Normalizar la fase (el servidor puede devolver cosas como "vote1", "waiting-on-leader", etc.)
+    const canonicalPhase = normalizePhase(currentRound.phase, currentRound.status);
+
     // Década actual (1..5, corresponde al número de ronda)
-    const decade = rounds.length;
+    const decade = displayRounds.length;
 
-    // Puntajes
-    const citizensWins = rounds.filter(r => r.result === "citizens").length;
-    const enemiesWins = rounds.filter(r => r.result === "enemies").length;
+    // Puntajes (contar victorias en todas las rondas)
+    const citizensWins = displayRounds.filter(r => r.result === "citizens").length;
+    const enemiesWins = displayRounds.filter(r => r.result === "enemies").length;
 
-    // Mostrar información de ronda
-    document.getElementById("roundIdDisplay").textContent = `ID de Ronda: ${currentRound.id}`;
-    document.getElementById("roundInfo").textContent =
-        `Ronda: ${currentRound.id} | Líder: ${currentRound.leader} | Estado: ${currentRound.status} | Fase: ${currentRound.phase} | Grupo: ${currentRound.group?.join(", ") || "ninguno"}`;
-    document.getElementById("decadePill").textContent = `Década: ${decade}`;
-    document.getElementById("phasePill").textContent = `Fase: ${currentRound.phase}`;
-    document.getElementById("scorePill").textContent = `Puntaje — Ejemplares: ${citizensWins} | Psicópatas: ${enemiesWins}`;
+    // Mostrar información de ronda en la tabla de historial
+    const decadeEl2 = document.getElementById("decadePill"); if (decadeEl2) decadeEl2.textContent = `Década: ${decade}`;
+    // phasePill was removed from the header (duplicate); keep score pill updated
+    const scorePillEl = document.getElementById("scorePill"); if (scorePillEl) scorePillEl.textContent = `Puntaje — Ejemplares: ${citizensWins} | Psicópatas: ${enemiesWins}`;
     
     // Mostrar al dirigente comunal
-    if (leaderPill) {
-        leaderPill.textContent = `Dirigente comunal: ${currentRound.leader}`;
-        leaderPill.style.display = "inline-block";
+    const leaderPillEl = document.getElementById('leaderPill');
+    if (leaderPillEl) {
+        leaderPillEl.textContent = `Dirigente comunal: ${currentRound.leader}`;
+        leaderPillEl.style.display = "inline-block";
     }
 
     // Mostrar tamaño de grupo esperado
@@ -353,7 +400,81 @@ export async function getRounds() {
     document.getElementById("groupSizeHint").textContent =
         `Tamaño requerido de grupo: ${requiredSize ?? "—"} (jugadores: ${playersCount})`;
 
-      // Lógica para mostrar los botones de acción
+    // Renderizar historial completo de rondas en la sección 'roundsHistory'
+    try {
+        const historyEl = document.getElementById('roundsHistory');
+        if (historyEl) {
+            if (!rounds || rounds.length === 0) {
+                historyEl.innerHTML = '<div class="hint">No hay rondas registradas.</div>';
+            } else {
+                // Construir una tabla con todas las rondas (1..N)
+                const rows = displayRounds.map((r, i) => {
+                    const num = i + 1;
+                    const leader = r.leader || '—';
+                    const status = r.status || '—';
+                    const phase = r.phase || '—';
+                    const canonical = normalizePhase(r.phase, r.status);
+                    // Intento de votación: vote1 -> 1, vote2 -> 2, vote3 -> 3 (si aplica)
+                    let intento = '—';
+                    const ph = (r.phase || '').toString().toLowerCase();
+                    const m = ph.match(/vote\s*-?\s*(\d+)/i) || ph.match(/vote(\d+)/i);
+                    if (m && m[1]) intento = parseInt(m[1], 10);
+                    const group = Array.isArray(r.group) ? r.group.join(', ') : (r.group || '—');
+                    const rawResult = r.result || 'none';
+                    const result = rawResult === 'citizens' ? 'Ejemplares' : (rawResult === 'enemies' ? 'Psicópatas' : 'Pendiente');
+                    const votes = Array.isArray(r.votes) ? r.votes.length : (r.votes ? r.votes.length : 0);
+                    return `
+                        <tr>
+                            <td>${num}</td>
+                            <td>${leader}</td>
+                            <td>${status}</td>
+                            <td>${phase}</td>
+                            <td>${intento}</td>
+                            <td>${group}</td>
+                            <td>${result}</td>
+                            <td>${votes}</td>
+                        </tr>`;
+                }).join('\n');
+
+                historyEl.innerHTML = `
+                    <table class="rounds-table" style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="background:#f3f6f4;">
+                                <th># Ronda</th>
+                                <th>Líder</th>
+                                <th>Estado</th>
+                                <th>Fase</th>
+                                <th>Intentos</th>
+                                <th>Grupo</th>
+                                <th>Resultado</th>
+                                <th>Votos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>`;
+                // Resaltar y hacer scroll hacia la última fila (más reciente)
+                setTimeout(() => {
+                    try {
+                        const tbody = historyEl.querySelector('tbody');
+                        if (tbody && tbody.lastElementChild) {
+                            const lastRow = tbody.lastElementChild;
+                            lastRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            // aplicar highlight temporal
+                            const prevBg = lastRow.style.background;
+                            lastRow.style.background = 'rgba(255, 235, 59, 0.18)';
+                            setTimeout(() => { lastRow.style.transition = 'background 600ms'; lastRow.style.background = prevBg; }, 1200);
+                        }
+                    } catch (e) { /* no bloquear UI */ }
+                }, 80);
+            }
+        }
+    } catch (err) {
+        console.warn('Error renderizando historial de rondas', err);
+    }
+
+    // Lógica para mostrar los botones de acción
     const isLeader = currentRound.leader === player;
     const isGroupMember = currentRound.group?.includes(player);
     const isEnemy = Array.isArray(lastGame?.enemies) && lastGame.enemies.includes(player);
@@ -361,7 +482,8 @@ export async function getRounds() {
     // Ocultar todos los botones primero
     Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
-    switch (currentRound.phase) {
+    // Usar la fase normalizada para determinar qué botones mostrar
+    switch (canonicalPhase) {
         case "proposal":
             if (isLeader && btns.propose) {
                 btns.propose.style.display = "inline-block";
@@ -392,13 +514,24 @@ export async function getRounds() {
     //  Verificar si alguien ya ganó (3 puntos)
     const partidaTerminada = citizensWins >= 3 || enemiesWins >= 3;
     if (partidaTerminada) {
-        const ganador = citizensWins >= 3 ? "🎉 ¡Los Ejemplares ganaron la partida!" : "💀 ¡Los Psicópatas ganaron la partida!";
-        alert(ganador);
+        const ganador = citizensWins >= 3 ? { text: "¡Los Ejemplares ganaron la partida!", css: { background: '#e8f5e9', color: '#1b5e20' } }
+            : { text: "¡Los Psicópatas ganaron la partida!", css: { background: '#ffebee', color: '#b71c1c' } };
+
+        // Mostrar banner de ganador en la UI
+        const winnerEl = document.getElementById('gameWinner');
+        if (winnerEl) {
+            winnerEl.textContent = (citizensWins >= 3) ? `🎉 ${ganador.text}` : `💀 ${ganador.text}`;
+            winnerEl.style.display = 'block';
+            // aplicar colores según bando
+            winnerEl.style.background = ganador.css.background;
+            winnerEl.style.color = ganador.css.color;
+        }
+
         logConsole("Partida finalizada", { citizensWins, enemiesWins });
         stopAutoRefresh();
-        // Deshabilitar botones
+        // Deshabilitar botones interactivos 
         document.querySelectorAll("button").forEach(b => {
-            if (b.id !== "startBtn" && b.id !== "searchBtn" && b.textContent.includes("Autorefresh")) {
+            if (b.id !== "startBtn" && b.id !== "searchBtn" && !b.textContent.includes("Autorefresh")) {
                 b.disabled = true;
             }
         });
@@ -416,7 +549,16 @@ export async function proposeGroup() {
     if (!roundsData.data || roundsData.data.length === 0) {
         return alert("No hay rondas activas para proponer un grupo.");
     }
-    const currentRound = roundsData.data[roundsData.data.length - 1]; // Última ronda
+    // Asegurarse de usar la misma ordenación cronológica que getRounds()
+    const sorted = sortRoundsAsc(roundsData.data.slice());
+    // Buscar la ronda que esté en fase de 'proposal' (esperando propuesta del líder).
+    let currentRound = null;
+    for (let i = sorted.length - 1; i >= 0; i--) {
+        const r = sorted[i];
+        if (normalizePhase(r.phase, r.status) === 'proposal') { currentRound = r; break; }
+    }
+    // Si no encontramos una ronda en 'proposal', usar la más reciente como fallback.
+    if (!currentRound) currentRound = sorted[sorted.length - 1];
 
     // Solo el líder de la ronda puede proponer
     if (currentRound.leader !== player) {
@@ -511,9 +653,18 @@ export async function voteGroup() {
     });
     const roundsData = await roundsRes.json();
     const rounds = roundsData.data || [];
-
-    // Buscar la ronda que este en votacion
-    const currentVotingRound = rounds.find(r => r.id === currentRoundId && r.phase === "voting");
+    // Ordenar las rondas y buscar la ronda que esté en votación (aceptar variantes como 'vote1')
+    const sorted = sortRoundsAsc(rounds.slice());
+    // Preferir la ronda con fase 'voting' (más reciente)
+    let currentVotingRound = null;
+    for (let i = sorted.length - 1; i >= 0; i--) {
+        const r = sorted[i];
+        if (normalizePhase(r.phase, r.status) === 'voting') { currentVotingRound = r; break; }
+    }
+    // Fallback: si currentRoundId coincide con una ronda de 'voting', usarla
+    if (!currentVotingRound) {
+        currentVotingRound = sorted.find(r => r.id === currentRoundId && normalizePhase(r.phase, r.status) === 'voting');
+    }
     if (!currentVotingRound) {
         return alert("No hay ninguna ronda en votación actualmente.");
     }
@@ -556,4 +707,42 @@ export async function sendAction(action) {
     logConsole(`PUT /api/games/${currentGameId}/rounds/${currentRoundId}`, data);
     alert(data.msg || (res.ok ? "Acción enviada" : `Error (${res.status})`));
     await refreshGame();
+}
+
+// Ordena un array de rondas cronológicamente en orden ascendente (más antiguo primero).
+// Usa createdAt/created_at/created si están presentes, sino intenta extraer timestamp de ObjectId (24 hex).
+function sortRoundsAsc(rounds) {
+    if (!Array.isArray(rounds)) return [];
+    const copy = rounds.slice();
+    if (copy.length <= 1) return copy;
+
+    const hasCreatedAt = copy.every(r => r && (r.createdAt || r.created_at || r.created));
+    if (hasCreatedAt) {
+        copy.sort((a, b) => {
+            const ta = a.createdAt || a.created_at || a.created;
+            const tb = b.createdAt || b.created_at || b.created;
+            const da = isNaN(Date.parse(ta)) ? 0 : Date.parse(ta);
+            const db = isNaN(Date.parse(tb)) ? 0 : Date.parse(tb);
+            return da - db;
+        });
+        return copy;
+    }
+
+    const allId24 = copy.every(r => r && typeof r.id === 'string' && /^[0-9a-fA-F]{24}$/.test(r.id));
+    if (allId24) {
+        copy.sort((a, b) => {
+            const ta = parseInt(a.id.substring(0, 8), 16);
+            const tb = parseInt(b.id.substring(0, 8), 16);
+            return ta - tb;
+        });
+        return copy;
+    }
+
+    // Fallback heurístico: si el primer elemento parece activo y el último no, invertir
+    const first = copy[0];
+    const last = copy[copy.length - 1];
+    const firstActive = (first && (first.result === 'none' || normalizePhase(first.phase, first.status) !== 'ended'));
+    const lastActive = (last && (last.result === 'none' || normalizePhase(last.phase, last.status) !== 'ended'));
+    if (firstActive && !lastActive) return copy.reverse();
+    return copy;
 }
