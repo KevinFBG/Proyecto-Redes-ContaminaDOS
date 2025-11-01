@@ -561,64 +561,123 @@ export async function proposeGroup() {
 
 
 
-    // Pedir al usuario los miembros del grupo
-    const promptMessage = `Eres el líder. Se necesita un grupo de ${requiredSize} en total. 
-    Ingresa **todos** los nombres de los miembros del grupo, separados por comas (puedes incluirte o no).`;
+    // Mostrar una casilla por cada jugador para seleccionar el grupo
+    const existingModal = document.getElementById('proposeModal');
+    if (existingModal) existingModal.remove();
 
-    const membersInput = prompt(promptMessage);
-    if (membersInput === null) return; // El usuario canceló
+    const modal = document.createElement('div');
+    modal.id = 'proposeModal';
+    modal.className = 'modal';
 
-    // Procesar y validar la entrada
-    const proposedMembers = membersInput.split(',').map(name => name.trim()).filter(Boolean);
+    const panel = document.createElement('div');
+    panel.className = 'modal-panel';
 
-    
-    // Verificar el tamaño total del grupo
-    if (proposedMembers.length !== requiredSize) {
-        return alert(`Error: Se requieren ${requiredSize} miembros en total, pero has propuesto un grupo de ${proposedMembers.length}. Inténtalo de nuevo.`);
-    }
+    const title = document.createElement('h3');
+    title.textContent = `Proponer grupo — selecciona ${requiredSize} miembro(s)`;
+    panel.appendChild(title);
 
-    // Verificar duplicados
-    const memberSet = new Set(proposedMembers);
-    if (memberSet.size !== proposedMembers.length) {
-        return alert("Error: La lista de 'otros miembros' contiene nombres duplicados.");
-    }
-    
-    // Verificar que sean jugadores válidos
-    const invalidMembers = proposedMembers.filter(member => !lastGame.players.includes(member));
-    if (invalidMembers.length > 0) {
-        return alert(`Error: Los siguientes nombres no son jugadores válidos en la partida: ${invalidMembers.join(', ')}.`);
-    }
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.style.marginTop = '0';
+    hint.textContent = 'Marca los jugadores que formarán parte del grupo. Elige exactamente la cantidad requerida.';
+    panel.appendChild(hint);
 
-    // // Construir el grupo final
-    const finalGroup = proposedMembers;
+    const list = document.createElement('div');
+    list.className = 'propose-list';
 
+    // Crear una casilla por cada jugador (incluye al líder también)
+    (lastGame.players || []).forEach((pl, idx) => {
+        const lab = document.createElement('label');
+        lab.className = 'propose-item';
 
-    if (finalGroup.length !== requiredSize) {
-        return alert(`Error: Se requieren ${requiredSize} miembros en total, pero has propuesto un grupo de ${finalGroup.length}. Inténtalo de nuevo.`);
-    }
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = pl;
+        cb.id = `propose_cb_${idx}`;
 
-    // Enviar la propuesta
-    logConsole("Proponiendo grupo:", finalGroup);
-    const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentRound.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "player": player, "password": currentPassword },
-        body: JSON.stringify({ group: finalGroup })
+        const span = document.createElement('span');
+        span.textContent = pl;
+
+        lab.appendChild(cb);
+        lab.appendChild(span);
+        list.appendChild(lab);
     });
+    panel.appendChild(list);
 
-    const data = await res.json().catch(() => ({}));
-    logConsole(`PATCH /api/games/${currentGameId}/rounds/${currentRound.id}`, data);
+    const errorLine = document.createElement('div');
+    errorLine.className = 'error-line';
+    panel.appendChild(errorLine);
 
-    if (res.ok) {
-        alert(data.msg || "Grupo propuesto correctamente.");
-        // Dar tiempo para procesar el cambio y refrescar dos veces 
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await refreshGame();
-   
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await refreshGame();
-    } else {
-        alert(data.msg || `Error al proponer el grupo (${res.status}).`);
+    const actions = document.createElement('div');
+    actions.className = 'propose-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.onclick = () => modal.remove();
+
+    const submitBtn = document.createElement('button');
+    submitBtn.textContent = 'Proponer';
+    submitBtn.style.fontWeight = '600';
+    submitBtn.onclick = async () => {
+        const checked = Array.from(list.querySelectorAll('input[type=checkbox]:checked')).map(i => i.value);
+        if (checked.length !== requiredSize) {
+            errorLine.textContent = `Selecciona exactamente ${requiredSize} miembro(s). Actualmente: ${checked.length}.`;
+            return;
+        }
+
+        // Verificar que los nombres seleccionados existan en la lista de jugadores
+        const invalid = checked.filter(n => !(lastGame.players || []).includes(n));
+        if (invalid.length) {
+            errorLine.textContent = `Nombres inválidos: ${invalid.join(', ')}`;
+            return;
+        }
+
+        // Construir grupo final y enviar la petición
+        const finalGroup = checked;
+        // Deshabilitar botón para evitar doble envío
+        submitBtn.disabled = true;
+        logConsole('Proponiendo grupo (UI):', finalGroup);
+        try {
+            const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentRound.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
+                body: JSON.stringify({ group: finalGroup })
+            });
+            const data = await res.json().catch(() => ({}));
+            logConsole(`PATCH /api/games/${currentGameId}/rounds/${currentRound.id}`, data);
+            if (res.ok) {
+                alert(data.msg || 'Grupo propuesto correctamente.');
+                modal.remove();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await refreshGame();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await refreshGame();
+            } else {
+                errorLine.textContent = data.msg || `Error al proponer el grupo (${res.status}).`;
+                submitBtn.disabled = false;
+            }
+        } catch (err) {
+            errorLine.textContent = 'Error de red al enviar la propuesta.';
+            submitBtn.disabled = false;
+            console.error(err);
+        }
+    };
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(submitBtn);
+    panel.appendChild(actions);
+
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
+
+    // Auto-focus: scroll to leader and if present, focus leader checkbox
+    const leaderIdx = (lastGame.players || []).indexOf(player);
+    if (leaderIdx >= 0) {
+        const leaderCb = document.getElementById(`propose_cb_${leaderIdx}`);
+        if (leaderCb) leaderCb.focus();
     }
+
+    // El envío se realiza desde el modal; no ejecutar lógica extra aquí.
 }
 
 
