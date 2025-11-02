@@ -585,7 +585,7 @@ export async function proposeGroup() {
     const list = document.createElement('div');
     list.className = 'propose-list';
 
-    // Crear una casilla por cada jugador (incluye al líder también)
+    // Crear una casilla por cada jugador 
     (lastGame.players || []).forEach((pl, idx) => {
         const lab = document.createElement('label');
         lab.className = 'propose-item';
@@ -706,22 +706,84 @@ export async function voteGroup() {
         return alert("No hay ninguna ronda en votación actualmente.");
     }
 
-    // Preguntar al jugador
-    const vote = confirm(`¿Votar a favor del grupo: ${currentVotingRound.group?.join(', ')}?`);
+    // Mostrar un modal con botones Aceptar / Rechazar en lugar de confirm()
+    const existing = document.getElementById('voteModal');
+    if (existing) existing.remove();
 
-    // Enviar voto
-    const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentVotingRound.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "player": player, "password": currentPassword },
-        body: JSON.stringify({ vote })
-    });
+    const modal = document.createElement('div');
+    modal.id = 'voteModal';
+    modal.className = 'modal';
 
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) {
-        alert(data.msg || "Voto registrado");
-        await refreshGame();
-    } else {
-        alert(data.msg || `Error (${res.status})`);
+    const panel = document.createElement('div');
+    panel.className = 'modal-panel';
+
+    const title = document.createElement('h3');
+    title.textContent = 'Votación de grupo';
+    panel.appendChild(title);
+
+    const msg = document.createElement('p');
+    msg.textContent = `¿Votar a favor del grupo: ${currentVotingRound.group?.join(', ')}?`;
+    panel.appendChild(msg);
+
+    const info = document.createElement('p');
+    info.className = 'hint';
+    info.style.marginTop = '0.2rem';
+    info.textContent = 'Pulsa Aceptar para votar sí, o Rechazar para votar no.';
+    panel.appendChild(info);
+
+    const actions = document.createElement('div');
+    actions.className = 'propose-actions';
+
+    const btnNo = document.createElement('button');
+    btnNo.textContent = 'Rechazar';
+    btnNo.onclick = async () => {
+        await sendVote(false);
+        modal.remove();
+    };
+
+    const btnYes = document.createElement('button');
+    btnYes.textContent = 'Aceptar';
+    btnYes.style.fontWeight = '600';
+    btnYes.onclick = async () => {
+        await sendVote(true);
+        modal.remove();
+    };
+
+    actions.appendChild(btnNo);
+    actions.appendChild(btnYes);
+    panel.appendChild(actions);
+
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
+
+    async function sendVote(vote) {
+        try {
+            const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentVotingRound.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
+                body: JSON.stringify({ vote })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                // Mostrar feedback mínimo sin alertas
+                const smallMsg = document.createElement('div');
+                smallMsg.className = 'hint';
+                smallMsg.textContent = data.msg || 'Voto registrado.';
+                panel.appendChild(smallMsg);
+                await refreshGame();
+            } else {
+                const err = document.createElement('div');
+                err.className = 'error-line';
+                err.textContent = data.msg || `Error (${res.status})`;
+                panel.appendChild(err);
+            }
+        } catch (err) {
+            const e = document.createElement('div');
+            e.className = 'error-line';
+            e.textContent = 'Error de red al enviar el voto.';
+            panel.appendChild(e);
+            console.error(err);
+        }
     }
 }
 
