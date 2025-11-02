@@ -72,14 +72,14 @@ export async function createGame() {
     if (res.status === 200) {
         setCurrentGameId(data.data.id);
         setCurrentPassword(password || "nopass"); // store for headers
-        
+
         document.getElementById("playerSection").style.display = "none";
         document.getElementById("gameStatus").style.display = "block";
         document.getElementById("gamesList").style.display = "none";
         updatePlayerDisplay();
         alert(data.msg || "Partida creada.");
         await refreshGame();
-         startAutoRefresh();
+        startAutoRefresh();
     } else {
         alert(data.msg || `Error al crear (${res.status})`);
     }
@@ -108,11 +108,11 @@ export async function searchGame() {
         const requiresPassword = !!g.password;
         // Obtener la cantidad de jugadores
         const playerCount = Array.isArray(g.players) ? g.players.length : 0;
-        
+
         //COMPROBAR SI LA PARTIDA ESTÁ LLENA
         const MAX_PLAYERS = 10;
         const isFull = playerCount >= MAX_PLAYERS;
-        
+
         // Configurar el texto y el estado del botón
         const buttonText = isFull ? `LLENO (${playerCount})` : "Entrar";
         const disabledAttr = isFull ? "disabled" : "";
@@ -143,7 +143,7 @@ export async function joinGame(gameId, requiresPassword, owner) {
     let pass = "nopass"; // default no password
 
     // El HTML pasa true como string, verificar ambos
-    if (requiresPassword === true || requiresPassword === "true") { 
+    if (requiresPassword === true || requiresPassword === "true") {
         pass = prompt("La partida tiene contraseña. Ingrésela:") || "";
         const vPwd = validateLength(pass, 3, 20);
         if (!vPwd) return alert("La contraseña debe tener entre 3 y 20 caracteres.");
@@ -185,16 +185,16 @@ export async function startGame() {
     if (res.ok) {
         alert("Partida iniciada");
         await new Promise(resolve => setTimeout(resolve, 500));
-            // Actualizar el estado del juego primero para poblar `lastGame`, luego obtener rondas
-            await refreshGame();
-            await getRounds();
-            document.getElementById("roundSection").style.display = "block";
+        // Actualizar el estado del juego primero para poblar `lastGame`, luego obtener rondas
+        await refreshGame();
+        await getRounds();
+        document.getElementById("roundSection").style.display = "block";
         // Ocultar el botón de iniciar inmediatamente para el owner
         const startBtnEl = document.getElementById("startBtn");
         if (startBtnEl) startBtnEl.style.display = "none";
     } else {
         alert(`No se pudo iniciar (${res.status})`);
-        
+
     }
     await refreshGame();
 }
@@ -265,11 +265,11 @@ export async function refreshGame() {
             return;
         }
 
-    if (decadePill) decadePill.style.display = "none";
-    if (scorePill) scorePill.style.display = "none";
-    if (leaderPill) leaderPill.style.display = "none";
-    if (enemiesPill) enemiesPill.style.display = "none";
-    if (groupSizeHint) groupSizeHint.style.display = "none";
+        if (decadePill) decadePill.style.display = "none";
+        if (scorePill) scorePill.style.display = "none";
+        if (leaderPill) leaderPill.style.display = "none";
+        if (enemiesPill) enemiesPill.style.display = "none";
+        if (groupSizeHint) groupSizeHint.style.display = "none";
         Object.values(btns).forEach(b => { if (b) { b.style.display = "none"; b.disabled = false; } });
         setCurrentRoundId("");
         return;
@@ -339,7 +339,7 @@ export async function getRounds() {
         collab: document.getElementById("btnCollab"),
         sabot: document.getElementById("btnSabot")
     };
-    
+
     // Ocultar todos los botones primero
     Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
@@ -368,9 +368,9 @@ export async function getRounds() {
 
     // Mostrar información de ronda en la tabla de historial
     const decadeEl2 = document.getElementById("decadePill"); if (decadeEl2) decadeEl2.textContent = `Década: ${decade}`;
-  
+
     const scorePillEl = document.getElementById("scorePill"); if (scorePillEl) scorePillEl.textContent = `Puntaje — Ejemplares: ${citizensWins} | Psicópatas: ${enemiesWins}`;
-    
+
     // Mostrar al dirigente comunal
     const leaderPillEl = document.getElementById('leaderPill');
     if (leaderPillEl) {
@@ -462,7 +462,7 @@ export async function getRounds() {
     const isLeader = currentRound.leader === player;
     const isGroupMember = currentRound.group?.includes(player);
     const isEnemy = Array.isArray(lastGame?.enemies) && lastGame.enemies.includes(player);
-    
+
     // Ocultar todos los botones primero
     Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
@@ -558,9 +558,6 @@ export async function proposeGroup() {
         return alert(`No se pudo determinar el tamaño de grupo para ${playersCount} jugadores en la década ${decade}.`);
     }
 
-
-
-
     // Mostrar una casilla por cada jugador para seleccionar el grupo
     const existingModal = document.getElementById('proposeModal');
     if (existingModal) existingModal.remove();
@@ -636,32 +633,25 @@ export async function proposeGroup() {
         const finalGroup = checked;
         // Deshabilitar botón para evitar doble envío
         submitBtn.disabled = true;
-        logConsole('Proponiendo grupo (UI):', finalGroup);
-        try {
-            const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentRound.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
-                body: JSON.stringify({ group: finalGroup })
-            });
-            const data = await res.json().catch(() => ({}));
-            logConsole(`PATCH /api/games/${currentGameId}/rounds/${currentRound.id}`, data);
-            if (res.ok) {
-                alert(data.msg || 'Grupo propuesto correctamente.');
-                modal.remove();
-                await new Promise(resolve => setTimeout(resolve, 500));
-                await refreshGame();
-                await new Promise(resolve => setTimeout(resolve, 500));
-                await refreshGame();
-            } else {
-                errorLine.textContent = data.msg || `Error al proponer el grupo (${res.status}).`;
-                submitBtn.disabled = false;
-            }
-        } catch (err) {
-            errorLine.textContent = 'Error de red al enviar la propuesta.';
-            submitBtn.disabled = false;
-            console.error(err);
+
+        const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentRound.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
+            body: JSON.stringify({ group: finalGroup })
+        });
+        const data = await res.json().catch(() => ({}));
+        logConsole(`PATCH /api/games/${currentGameId}/rounds/${currentRound.id}`, data);
+        if (res.ok) {
+            alert(data.msg || 'Grupo propuesto correctamente.');
+            modal.remove();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await refreshGame();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await refreshGame();
         }
     };
+
+
 
     actions.appendChild(cancelBtn);
     actions.appendChild(submitBtn);
@@ -706,7 +696,7 @@ export async function voteGroup() {
         return alert("No hay ninguna ronda en votación actualmente.");
     }
 
-    // Mostrar un modal con botones Aceptar / Rechazar en lugar de confirm()
+    // Mostrar un modal con botones Aceptar / Rechazar para votar 
     const existing = document.getElementById('voteModal');
     if (existing) existing.remove();
 
@@ -728,7 +718,7 @@ export async function voteGroup() {
     const info = document.createElement('p');
     info.className = 'hint';
     info.style.marginTop = '0.2rem';
-    info.textContent = 'Pulsa Aceptar para votar sí, o Rechazar para votar no.';
+    info.textContent = 'Pulsa Rechazar o Aceptar para votar.';
     panel.appendChild(info);
 
     const actions = document.createElement('div');
@@ -757,36 +747,22 @@ export async function voteGroup() {
     document.body.appendChild(modal);
 
     async function sendVote(vote) {
-        try {
-            const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentVotingRound.id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
-                body: JSON.stringify({ vote })
-            });
-            const data = await res.json().catch(() => ({}));
-            if (res.ok) {
-                // Mostrar feedback mínimo sin alertas
-                const smallMsg = document.createElement('div');
-                smallMsg.className = 'hint';
-                smallMsg.textContent = data.msg || 'Voto registrado.';
-                panel.appendChild(smallMsg);
-                await refreshGame();
-            } else {
-                const err = document.createElement('div');
-                err.className = 'error-line';
-                err.textContent = data.msg || `Error (${res.status})`;
-                panel.appendChild(err);
-            }
-        } catch (err) {
-            const e = document.createElement('div');
-            e.className = 'error-line';
-            e.textContent = 'Error de red al enviar el voto.';
-            panel.appendChild(e);
-            console.error(err);
+
+        const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentVotingRound.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
+            body: JSON.stringify({ vote })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+            const smallMsg = document.createElement('div');
+            smallMsg.className = 'hint';
+            smallMsg.textContent = data.msg || 'Voto registrado.';
+            panel.appendChild(smallMsg);
+            await refreshGame();
         }
     }
 }
-
 
 export async function sendAction(action) {
     if (!currentRoundId) return alert("Primero obtén la ronda.");
