@@ -72,14 +72,14 @@ export async function createGame() {
     if (res.status === 200) {
         setCurrentGameId(data.data.id);
         setCurrentPassword(password || "nopass"); // store for headers
-        
+
         document.getElementById("playerSection").style.display = "none";
         document.getElementById("gameStatus").style.display = "block";
         document.getElementById("gamesList").style.display = "none";
         updatePlayerDisplay();
         alert(data.msg || "Partida creada.");
         await refreshGame();
-         startAutoRefresh();
+        startAutoRefresh();
     } else {
         alert(data.msg || `Error al crear (${res.status})`);
     }
@@ -108,11 +108,11 @@ export async function searchGame() {
         const requiresPassword = !!g.password;
         // Obtener la cantidad de jugadores
         const playerCount = Array.isArray(g.players) ? g.players.length : 0;
-        
+
         //COMPROBAR SI LA PARTIDA ESTÁ LLENA
         const MAX_PLAYERS = 10;
         const isFull = playerCount >= MAX_PLAYERS;
-        
+
         // Configurar el texto y el estado del botón
         const buttonText = isFull ? `LLENO (${playerCount})` : "Entrar";
         const disabledAttr = isFull ? "disabled" : "";
@@ -143,7 +143,7 @@ export async function joinGame(gameId, requiresPassword, owner) {
     let pass = "nopass"; // default no password
 
     // El HTML pasa true como string, verificar ambos
-    if (requiresPassword === true || requiresPassword === "true") { 
+    if (requiresPassword === true || requiresPassword === "true") {
         pass = prompt("La partida tiene contraseña. Ingrésela:") || "";
         const vPwd = validateLength(pass, 3, 20);
         if (!vPwd) return alert("La contraseña debe tener entre 3 y 20 caracteres.");
@@ -185,16 +185,16 @@ export async function startGame() {
     if (res.ok) {
         alert("Partida iniciada");
         await new Promise(resolve => setTimeout(resolve, 500));
-            // Actualizar el estado del juego primero para poblar `lastGame`, luego obtener rondas
-            await refreshGame();
-            await getRounds();
-            document.getElementById("roundSection").style.display = "block";
+        // Actualizar el estado del juego primero para poblar `lastGame`, luego obtener rondas
+        await refreshGame();
+        await getRounds();
+        document.getElementById("roundSection").style.display = "block";
         // Ocultar el botón de iniciar inmediatamente para el owner
         const startBtnEl = document.getElementById("startBtn");
         if (startBtnEl) startBtnEl.style.display = "none";
     } else {
         alert(`No se pudo iniciar (${res.status})`);
-        
+
     }
     await refreshGame();
 }
@@ -265,11 +265,11 @@ export async function refreshGame() {
             return;
         }
 
-    if (decadePill) decadePill.style.display = "none";
-    if (scorePill) scorePill.style.display = "none";
-    if (leaderPill) leaderPill.style.display = "none";
-    if (enemiesPill) enemiesPill.style.display = "none";
-    if (groupSizeHint) groupSizeHint.style.display = "none";
+        if (decadePill) decadePill.style.display = "none";
+        if (scorePill) scorePill.style.display = "none";
+        if (leaderPill) leaderPill.style.display = "none";
+        if (enemiesPill) enemiesPill.style.display = "none";
+        if (groupSizeHint) groupSizeHint.style.display = "none";
         Object.values(btns).forEach(b => { if (b) { b.style.display = "none"; b.disabled = false; } });
         setCurrentRoundId("");
         return;
@@ -339,7 +339,7 @@ export async function getRounds() {
         collab: document.getElementById("btnCollab"),
         sabot: document.getElementById("btnSabot")
     };
-    
+
     // Ocultar todos los botones primero
     Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
@@ -368,9 +368,9 @@ export async function getRounds() {
 
     // Mostrar información de ronda en la tabla de historial
     const decadeEl2 = document.getElementById("decadePill"); if (decadeEl2) decadeEl2.textContent = `Década: ${decade}`;
-  
+
     const scorePillEl = document.getElementById("scorePill"); if (scorePillEl) scorePillEl.textContent = `Puntaje — Ejemplares: ${citizensWins} | Psicópatas: ${enemiesWins}`;
-    
+
     // Mostrar al dirigente comunal
     const leaderPillEl = document.getElementById('leaderPill');
     if (leaderPillEl) {
@@ -462,7 +462,7 @@ export async function getRounds() {
     const isLeader = currentRound.leader === player;
     const isGroupMember = currentRound.group?.includes(player);
     const isEnemy = Array.isArray(lastGame?.enemies) && lastGame.enemies.includes(player);
-    
+
     // Ocultar todos los botones primero
     Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
@@ -558,67 +558,116 @@ export async function proposeGroup() {
         return alert(`No se pudo determinar el tamaño de grupo para ${playersCount} jugadores en la década ${decade}.`);
     }
 
+    // Mostrar una casilla por cada jugador para seleccionar el grupo
+    const existingModal = document.getElementById('proposeModal');
+    if (existingModal) existingModal.remove();
 
+    const modal = document.createElement('div');
+    modal.id = 'proposeModal';
+    modal.className = 'modal';
 
+    const panel = document.createElement('div');
+    panel.className = 'modal-panel';
 
-    // Pedir al usuario los miembros del grupo
-    const promptMessage = `Eres el líder. Se necesita un grupo de ${requiredSize} en total. 
-    Ingresa **todos** los nombres de los miembros del grupo, separados por comas (puedes incluirte o no).`;
+    const title = document.createElement('h3');
+    title.textContent = `Proponer grupo — selecciona ${requiredSize} miembro(s)`;
+    panel.appendChild(title);
 
-    const membersInput = prompt(promptMessage);
-    if (membersInput === null) return; // El usuario canceló
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.style.marginTop = '0';
+    hint.textContent = 'Marca los jugadores que formarán parte del grupo. Elige exactamente la cantidad requerida.';
+    panel.appendChild(hint);
 
-    // Procesar y validar la entrada
-    const proposedMembers = membersInput.split(',').map(name => name.trim()).filter(Boolean);
+    const list = document.createElement('div');
+    list.className = 'propose-list';
 
-    
-    // Verificar el tamaño total del grupo
-    if (proposedMembers.length !== requiredSize) {
-        return alert(`Error: Se requieren ${requiredSize} miembros en total, pero has propuesto un grupo de ${proposedMembers.length}. Inténtalo de nuevo.`);
-    }
+    // Crear una casilla por cada jugador 
+    (lastGame.players || []).forEach((pl, idx) => {
+        const lab = document.createElement('label');
+        lab.className = 'propose-item';
 
-    // Verificar duplicados
-    const memberSet = new Set(proposedMembers);
-    if (memberSet.size !== proposedMembers.length) {
-        return alert("Error: La lista de 'otros miembros' contiene nombres duplicados.");
-    }
-    
-    // Verificar que sean jugadores válidos
-    const invalidMembers = proposedMembers.filter(member => !lastGame.players.includes(member));
-    if (invalidMembers.length > 0) {
-        return alert(`Error: Los siguientes nombres no son jugadores válidos en la partida: ${invalidMembers.join(', ')}.`);
-    }
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = pl;
+        cb.id = `propose_cb_${idx}`;
 
-    // // Construir el grupo final
-    const finalGroup = proposedMembers;
+        const span = document.createElement('span');
+        span.textContent = pl;
 
-
-    if (finalGroup.length !== requiredSize) {
-        return alert(`Error: Se requieren ${requiredSize} miembros en total, pero has propuesto un grupo de ${finalGroup.length}. Inténtalo de nuevo.`);
-    }
-
-    // Enviar la propuesta
-    logConsole("Proponiendo grupo:", finalGroup);
-    const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentRound.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "player": player, "password": currentPassword },
-        body: JSON.stringify({ group: finalGroup })
+        lab.appendChild(cb);
+        lab.appendChild(span);
+        list.appendChild(lab);
     });
+    panel.appendChild(list);
 
-    const data = await res.json().catch(() => ({}));
-    logConsole(`PATCH /api/games/${currentGameId}/rounds/${currentRound.id}`, data);
+    const errorLine = document.createElement('div');
+    errorLine.className = 'error-line';
+    panel.appendChild(errorLine);
 
-    if (res.ok) {
-        alert(data.msg || "Grupo propuesto correctamente.");
-        // Dar tiempo para procesar el cambio y refrescar dos veces 
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await refreshGame();
-   
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await refreshGame();
-    } else {
-        alert(data.msg || `Error al proponer el grupo (${res.status}).`);
+    const actions = document.createElement('div');
+    actions.className = 'propose-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.onclick = () => modal.remove();
+
+    const submitBtn = document.createElement('button');
+    submitBtn.textContent = 'Proponer';
+    submitBtn.style.fontWeight = '600';
+    submitBtn.onclick = async () => {
+        const checked = Array.from(list.querySelectorAll('input[type=checkbox]:checked')).map(i => i.value);
+        if (checked.length !== requiredSize) {
+            errorLine.textContent = `Selecciona exactamente ${requiredSize} miembro(s). Actualmente: ${checked.length}.`;
+            return;
+        }
+
+        // Verificar que los nombres seleccionados existan en la lista de jugadores
+        const invalid = checked.filter(n => !(lastGame.players || []).includes(n));
+        if (invalid.length) {
+            errorLine.textContent = `Nombres inválidos: ${invalid.join(', ')}`;
+            return;
+        }
+
+        // Construir grupo final y enviar la petición
+        const finalGroup = checked;
+        // Deshabilitar botón para evitar doble envío
+        submitBtn.disabled = true;
+
+        const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentRound.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
+            body: JSON.stringify({ group: finalGroup })
+        });
+        const data = await res.json().catch(() => ({}));
+        logConsole(`PATCH /api/games/${currentGameId}/rounds/${currentRound.id}`, data);
+        if (res.ok) {
+            alert(data.msg || 'Grupo propuesto correctamente.');
+            modal.remove();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await refreshGame();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await refreshGame();
+        }
+    };
+
+
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(submitBtn);
+    panel.appendChild(actions);
+
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
+
+    // Auto-focus: scroll to leader and if present, focus leader checkbox
+    const leaderIdx = (lastGame.players || []).indexOf(player);
+    if (leaderIdx >= 0) {
+        const leaderCb = document.getElementById(`propose_cb_${leaderIdx}`);
+        if (leaderCb) leaderCb.focus();
     }
+
+    // El envío se realiza desde el modal; no ejecutar lógica extra aquí.
 }
 
 
@@ -647,25 +696,73 @@ export async function voteGroup() {
         return alert("No hay ninguna ronda en votación actualmente.");
     }
 
-    // Preguntar al jugador
-    const vote = confirm(`¿Votar a favor del grupo: ${currentVotingRound.group?.join(', ')}?`);
+    // Mostrar un modal con botones Aceptar / Rechazar para votar 
+    const existing = document.getElementById('voteModal');
+    if (existing) existing.remove();
 
-    // Enviar voto
-    const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentVotingRound.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "player": player, "password": currentPassword },
-        body: JSON.stringify({ vote })
-    });
+    const modal = document.createElement('div');
+    modal.id = 'voteModal';
+    modal.className = 'modal';
 
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) {
-        alert(data.msg || "Voto registrado");
-        await refreshGame();
-    } else {
-        alert(data.msg || `Error (${res.status})`);
+    const panel = document.createElement('div');
+    panel.className = 'modal-panel';
+
+    const title = document.createElement('h3');
+    title.textContent = 'Votación de grupo';
+    panel.appendChild(title);
+
+    const msg = document.createElement('p');
+    msg.textContent = `¿Votar a favor del grupo: ${currentVotingRound.group?.join(', ')}?`;
+    panel.appendChild(msg);
+
+    const info = document.createElement('p');
+    info.className = 'hint';
+    info.style.marginTop = '0.2rem';
+    info.textContent = 'Pulsa Rechazar o Aceptar para votar.';
+    panel.appendChild(info);
+
+    const actions = document.createElement('div');
+    actions.className = 'propose-actions';
+
+    const btnNo = document.createElement('button');
+    btnNo.textContent = 'Rechazar';
+    btnNo.onclick = async () => {
+        await sendVote(false);
+        modal.remove();
+    };
+
+    const btnYes = document.createElement('button');
+    btnYes.textContent = 'Aceptar';
+    btnYes.style.fontWeight = '600';
+    btnYes.onclick = async () => {
+        await sendVote(true);
+        modal.remove();
+    };
+
+    actions.appendChild(btnNo);
+    actions.appendChild(btnYes);
+    panel.appendChild(actions);
+
+    modal.appendChild(panel);
+    document.body.appendChild(modal);
+
+    async function sendVote(vote) {
+
+        const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentVotingRound.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
+            body: JSON.stringify({ vote })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+            const smallMsg = document.createElement('div');
+            smallMsg.className = 'hint';
+            smallMsg.textContent = data.msg || 'Voto registrado.';
+            panel.appendChild(smallMsg);
+            await refreshGame();
+        }
     }
 }
-
 
 export async function sendAction(action) {
     if (!currentRoundId) return alert("Primero obtén la ronda.");
