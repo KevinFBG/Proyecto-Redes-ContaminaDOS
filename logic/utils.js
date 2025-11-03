@@ -6,17 +6,72 @@ export let player = "";
 export let currentPassword = "nopass";
 export let currentGameId = "";
 export let currentRoundId = "";
-export let lastGame = null; // para guardar el último estado del juego
-export let autoOn = false; // El estado del Autorefresh
+export let lastGame = null; // guarda el último estado del juego
+export let autoOn = false; 
+
+// Key de session estorage para persistir por ventana
+const SESSION_KEY = 'contaminados_session_v1';
 
 // Funciones para modificar el estado
-export function setServer(newServer) { server = newServer; }
-export function setPlayer(newPlayer) { player = newPlayer; }
-export function setCurrentPassword(newPassword) { currentPassword = newPassword; }
-export function setCurrentGameId(newId) { currentGameId = newId; }
-export function setCurrentRoundId(newId) { currentRoundId = newId; }
+export function setServer(newServer) { server = newServer; try { saveSession(); } catch(e){} }
+export function setPlayer(newPlayer) { player = newPlayer; try { saveSession(); } catch(e){} }
+export function setCurrentPassword(newPassword) { currentPassword = newPassword; try { saveSession(); } catch(e){} }
+export function setCurrentGameId(newId) { currentGameId = newId; try { saveSession(); } catch(e){} }
+export function setCurrentRoundId(newId) { currentRoundId = newId; try { saveSession(); } catch(e){} }
 export function setLastGame(gameData) { lastGame = gameData; }
-export function toggleAutoOn() { autoOn = !autoOn; return autoOn; }
+export function toggleAutoOn() { autoOn = !autoOn; try { saveSession(); } catch(e){} return autoOn; }
+
+const _setServer = setServer;
+export function setServerAndSave(newServer) { _setServer(newServer); saveSession(); }
+const _setPlayer = setPlayer;
+export function setPlayerAndSave(newPlayer) { _setPlayer(newPlayer); saveSession(); }
+const _setCurrentPassword = setCurrentPassword;
+export function setCurrentPasswordAndSave(newPassword) { _setCurrentPassword(newPassword); saveSession(); }
+const _setCurrentGameId = setCurrentGameId;
+export function setCurrentGameIdAndSave(newId) { _setCurrentGameId(newId); saveSession(); }
+const _setCurrentRoundId = setCurrentRoundId;
+export function setCurrentRoundIdAndSave(newId) { _setCurrentRoundId(newId); saveSession(); }
+const _toggleAutoOn = toggleAutoOn;
+export function toggleAutoOnAndSave() { const val = _toggleAutoOn(); saveSession(); return val; }
+
+// Mantener la sesión en el sessionStorage
+function saveSession() {
+    try {
+        const payload = {
+            server,
+            player,
+            currentPassword,
+            currentGameId,
+            currentRoundId,
+            autoOn
+        };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+    } catch (e) {
+        console.warn('No se pudo guardar la sesión:', e);
+    }
+}
+
+// Restaurar la sesión desde sessionStorage
+export function restoreSession() {
+    try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+        if (!raw) return;
+        const obj = JSON.parse(raw);
+        if (!obj) return;
+        if (obj.server) server = obj.server;
+        if (obj.player) player = obj.player;
+        if (obj.currentPassword) currentPassword = obj.currentPassword;
+        if (obj.currentGameId) currentGameId = obj.currentGameId;
+        if (obj.currentRoundId) currentRoundId = obj.currentRoundId;
+        if (typeof obj.autoOn === 'boolean') autoOn = obj.autoOn;
+    } catch (e) {
+        console.warn('No se pudo restaurar la sesión:', e);
+    }
+}
+
+export function clearSession() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ }
+}
 
 /* ---------- Utilities ---------- */
 export function logConsole(msg, obj = null) {
