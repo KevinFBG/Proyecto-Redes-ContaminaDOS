@@ -458,41 +458,55 @@ export async function getRounds() {
         console.warn('Error renderizando historial de rondas', err);
     }
 
+    
     // Lógica para mostrar los botones de acción
-    const isLeader = currentRound.leader === player;
-    const isGroupMember = currentRound.group?.includes(player);
-    const isEnemy = Array.isArray(lastGame?.enemies) && lastGame.enemies.includes(player);
+const isLeader = currentRound.leader === player;
+const isGroupMember = Array.isArray(currentRound. group) && currentRound.group.includes(player);
+const isEnemy = Array.isArray(lastGame?.enemies) && lastGame.enemies.includes(player);
 
-    // Ocultar todos los botones primero
-    Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
+// Ocultar todos los botones primero
+Object.values(btns).forEach(b => { if (b) b.style.display = "none"; });
 
-    // Usar la fase normalizada para determinar qué botones mostrar
-    switch (canonicalPhase) {
-        case "proposal":
-            if (isLeader && btns.propose) {
-                btns.propose.style.display = "inline-block";
-                btns.propose.disabled = false;
+// Usar la fase normalizada para determinar qué botones mostrar
+switch (canonicalPhase) {
+    case "proposal":
+        if (isLeader && btns.propose) {
+            btns.propose.style.display = "inline-block";
+            btns.propose.disabled = false;
+        }
+        break;
+    case "voting":
+        
+        const hasVoted = (() => {
+            if (!Array.isArray(currentRound. votes) || !Array.isArray(lastGame?.players)) return false;
+            const playerIndex = lastGame.players.indexOf(player);
+            if (playerIndex === -1) return false;
+           
+            return currentRound.votes[playerIndex] !== null && currentRound.votes[playerIndex] !== undefined;
+        })();
+        
+        if (! hasVoted && btns.vote) {
+            btns.vote.style.display = "inline-block";
+            btns.vote.disabled = false;
+        }
+        break;
+    case "action":
+        if (isGroupMember) {
+            
+            const hasActed = (() => {
+                if (!currentRound.actions || typeof currentRound.actions !== 'object') return false;
+                return currentRound.actions.hasOwnProperty(player) && 
+                       currentRound.actions[player] !== null && 
+                       currentRound.actions[player] !== undefined;
+            })();
+            
+            if (!hasActed) {
+                if (btns.collab) btns.collab.style.display = "inline-block";
+                if (btns.sabot) btns.sabot.style. display = isEnemy ? "inline-block" : "none";
             }
-            break;
-        case "voting":
-            // Verificar si el jugador ya votó
-            const hasVoted = currentRound.votes?.find(v => v.player === player);
-            if (!hasVoted && btns.vote) {
-                btns.vote.style.display = "inline-block";
-                btns.vote.disabled = false;
-            }
-            break;
-        case "action":
-            if (isGroupMember) {
-                // Verificar si el jugador ya actuó
-                const hasActed = currentRound.actions?.find(a => a.player === player);
-                if (!hasActed) {
-                    if (btns.collab) btns.collab.style.display = "inline-block";
-                    if (btns.sabot) btns.sabot.style.display = isEnemy ? "inline-block" : "none";
-                }
-            }
-            break;
-    }
+        }
+        break;
+}
 
 
     //  Verificar si alguien ya ganó (3 puntos)
@@ -533,9 +547,7 @@ export async function proposeGroup() {
     if (!roundsData.data || roundsData.data.length === 0) {
         return alert("No hay rondas activas para proponer un grupo.");
     }
-    // Asegurarse de usar la misma ordenación cronológica que getRounds()
     const sorted = sortRoundsAsc(roundsData.data.slice());
-    // Buscar la ronda que esté en fase de propuesta del líder
     let currentRound = null;
     for (let i = sorted.length - 1; i >= 0; i--) {
         const r = sorted[i];
