@@ -4,9 +4,8 @@ import { setServer, updatePlayerDisplay, logConsole } from './utils.js';
 
 /* ---------- Connection ---------- */
 export function connect() {
-    // Tomar el valor del input o usar el valor por defecto
-    const serverInput = document.getElementById("serverUrl").value.trim() ||
-                        "https://contaminados.akamai.meseguercr.com"; 
+    
+    const serverInput = document.getElementById("serverUrl").value.trim();
 
     if (!serverInput) return alert("Ingrese la URL del servidor.");
     

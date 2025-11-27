@@ -19,11 +19,22 @@
         <section>
             <h2>Conexión</h2>
             <div class="row">
-                <input id="serverUrl" placeholder="Servidor" />
+                <input id="serverUrl" list="serverList" placeholder="Selecciona o escribe la URL del servidor" />
+                <datalist id="serverList">
+                    <option value="https://contaminados.akamai.meseguercr.com"></option>
+                    <option value="https://grupoa25.meseguercr.com"></option>
+                    <option value="https://grupob25.meseguercr.com"></option>
+                    <option value="https://grupoc25.meseguercr.com"></option>
+                    <option value="https://grupod25.meseguercr.com"></option>
+                    <option value="https://grupoe25.meseguercr.com"></option>
+                    <option value="https://grupof25.meseguercr.com"></option>
+                    <option value="https://grupog25.meseguercr.com"></option>
+                    <option value="https://grupoh25.meseguercr.com"></option>
+                    <option value="https://grupoi25.meseguercr.com"></option>
+                </datalist>
                 <button onclick="connect()">Conectar</button>
             </div>
-            <small class="hint">https://contaminados.akamai.meseguercr.com
-            </small>
+            <small class="hint">Selecciona un servidor de la lista o escribe una URL personalizada</small>
             <p id="connStatus"></p>
         </section>
 

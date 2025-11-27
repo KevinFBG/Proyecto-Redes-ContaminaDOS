@@ -69,7 +69,7 @@ export async function createGame() {
     const data = await res.json().catch(() => ({}));
     logConsole("POST /api/games", data);
 
-    if (res.status === 200) {
+    if (res.ok) {
         setCurrentGameId(data.data.id);
         setCurrentPassword(password || "nopass"); // store for headers
 
@@ -358,7 +358,7 @@ export async function getRounds() {
 
     // Normalizar la fase 
     const canonicalPhase = normalizePhase(currentRound.phase, currentRound.status);
-
+    
     // Década actual (1..5, corresponde al número de ronda)
     const decade = displayRounds.length;
 
