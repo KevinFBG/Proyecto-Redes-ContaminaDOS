@@ -763,7 +763,7 @@ export async function voteGroup() {
         const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentVotingRound.id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
-            body: JSON.stringify({ vote })
+            body: JSON.stringify(vote)
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
