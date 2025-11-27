@@ -1,5 +1,5 @@
 // logic/autorefresh.js
-
+ 
 import { refreshGame } from './game.js';
 import { logConsole, toggleAutoOn, autoOn } from './utils.js';
 

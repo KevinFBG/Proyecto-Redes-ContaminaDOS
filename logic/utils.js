@@ -20,7 +20,7 @@ export function setCurrentGameId(newId) { currentGameId = newId; try { saveSessi
 export function setCurrentRoundId(newId) { currentRoundId = newId; try { saveSession(); } catch(e){} }
 export function setLastGame(gameData) { lastGame = gameData; }
 export function toggleAutoOn() { autoOn = !autoOn; try { saveSession(); } catch(e){} return autoOn; }
-
+ 
 const _setServer = setServer;
 export function setServerAndSave(newServer) { _setServer(newServer); saveSession(); }
 const _setPlayer = setPlayer;
