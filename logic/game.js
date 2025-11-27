@@ -476,16 +476,9 @@ switch (canonicalPhase) {
         }
         break;
     case "voting":
-        
-        const hasVoted = (() => {
-            if (!Array.isArray(currentRound. votes) || !Array.isArray(lastGame?.players)) return false;
-            const playerIndex = lastGame.players.indexOf(player);
-            if (playerIndex === -1) return false;
-           
-            return currentRound.votes[playerIndex] !== null && currentRound.votes[playerIndex] !== undefined;
-        })();
-        
-        if (! hasVoted && btns.vote) {
+        // Verificar si el jugador ya votó
+        const hasVoted = currentRound.votes?.find(v => v.player === player);
+        if (!hasVoted && btns.vote) {
             btns.vote.style.display = "inline-block";
             btns.vote.disabled = false;
         }
@@ -763,7 +756,7 @@ export async function voteGroup() {
         const res = await fetch(`${server}/api/games/${currentGameId}/rounds/${currentVotingRound.id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'player': player, 'password': currentPassword },
-            body: JSON.stringify(vote)
+            body: JSON.stringify({ vote })
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
